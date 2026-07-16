@@ -1,0 +1,37 @@
+name: cifar10_debug
+output_dir: outputs/cifar10_debug
+seed: 123
+data:
+  dataset: cifar10
+  root: datasets
+  mirror_url: https://data.brainchip.com/dataset-mirror/cifar10/cifar-10-python.tar.gz
+  fake_data: false
+  fake_size: 64
+  resolution: 32
+  num_classes: 10
+  batch_size: 8
+  num_workers: 0
+model:
+  base_channels: 16
+  channel_mults: [1, 2]
+  num_res_blocks: 1
+  attention_resolutions: [16]
+  dropout: 0.0
+  class_cond: true
+  cond_drop_prob: 0.1
+  num_heads: 1
+diffusion:
+  steps: 8
+  schedule: linear
+train:
+  max_steps: 4
+  learning_rate: 0.0002
+  weight_decay: 0.0
+  grad_accum_steps: 1
+  grad_clip: 1.0
+  ema_decay: 0.995
+  dtype: bf16
+  log_every: 1
+  save_every: 2
+  sample_every: 2
+  sample_count: 4

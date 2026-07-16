@@ -1,0 +1,77 @@
+baseline:
+  source_checkpoint: outputs/cifar10/checkpoints/latest.pt
+  checkpoint_sha256: 97089682B162CB31F3C2D6A35731778553355AA7DA468AF2657B9141A86944B4
+  global_step: 200000
+  trainable_parameters: 27285107
+  processed_images: 25600000
+  equivalent_cifar10_epochs: 512.0
+
+checkpoint_config:
+  name: cifar10
+  output_dir: outputs/cifar10
+  seed: 123
+  data:
+    dataset: cifar10
+    root: datasets
+    mirror_url: https://data.brainchip.com/dataset-mirror/cifar10/cifar-10-python.tar.gz
+    resolution: 32
+    num_classes: 10
+    batch_size: 128
+    num_workers: 4
+  model:
+    base_channels: 88
+    channel_mults: [1, 2, 2, 4]
+    num_res_blocks: 2
+    attention_resolutions: [8]
+    dropout: 0.1
+    class_cond: true
+    cond_drop_prob: 0.1
+    num_heads: 1
+  diffusion:
+    steps: 1000
+    schedule: cosine
+  train:
+    max_steps: 200000
+    learning_rate: 0.0002
+    weight_decay: 0.01
+    grad_accum_steps: 1
+    grad_clip: 1.0
+    ema_decay: 0.9999
+    dtype: bf16
+    log_every: 50
+    save_every: 2000
+    sample_every: 2000
+    sample_count: 16
+
+derived_runtime:
+  effective_batch_size: 128
+  optimizer: AdamW
+  optimizer_betas: [0.9, 0.999]
+  optimizer_eps: 1.0e-8
+  dataset_normalization:
+    input_range: [0.0, 1.0]
+    mean: [0.5, 0.5, 0.5]
+    std: [0.5, 0.5, 0.5]
+    model_range: [-1.0, 1.0]
+  training_autocast: bf16
+  reverse_sampling_dtype: float32
+
+historical_training_preview:
+  sampler: ddpm
+  sampling_steps: 1000
+  weights: ema
+  guidance_scale: 1.5
+  fixed_generator: false
+  note: Generated during the completed run before deterministic sampling and pred_x0 clipping were added.
+
+verified_baseline_sampling:
+  sampler: ddpm
+  sampling_steps: 1000
+  weights_tested: [raw, ema]
+  guidance_scale: 1.5
+  labels: [0, 1, 8, 9]
+  seeds: [100, 101, 108, 109]
+  periodic_preview_seed_default: 123
+  fixed_generator: true
+  deterministic_png: true
+  reverse_sampling_dtype: float32

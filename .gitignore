@@ -1,0 +1,11 @@
+.venv/
+.agents/
+.codex/
+__pycache__/
+*.pyc
+.pytest_cache/
+datasets/
+outputs/
+runs/
+*.pt
+*.pth

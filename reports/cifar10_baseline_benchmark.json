@@ -1,0 +1,19 @@
+{
+  "config": "mini_diffusion\\configs\\cifar10.yaml",
+  "warmup_steps": 20,
+  "measured_steps": 200,
+  "measured_seconds": 14.321094700018875,
+  "average_step_seconds": 0.07160547350009437,
+  "iterations_per_second": 13.965412853511568,
+  "images_per_second": 1787.5728452494807,
+  "average_data_loading_seconds": 9.115750028286129e-05,
+  "device": "cuda",
+  "device_name": "NVIDIA GeForce RTX 4090",
+  "dtype": "torch.bfloat16",
+  "autocast": true,
+  "batch_size": 128,
+  "effective_batch_size": 128,
+  "trainable_parameters": 27285107,
+  "cuda_peak_allocated_gb": 3.1060686111450195,
+  "cuda_peak_reserved_gb": 3.421875
+}
