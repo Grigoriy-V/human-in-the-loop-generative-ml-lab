@@ -275,3 +275,23 @@ Detailed evidence: [`reports/imagenette_sit_s_128_repa_setup.md`](reports/imagen
 ### Decision
 
 Retain batch 256 with workers 4: cached REPA is stable and needs about 0.59 GB more allocated VRAM than baseline. Keep the new experiment isolated at `outputs/imagenette_sit_s_128_repa/`; full 0-to-100k REPA training is intentionally not started by setup.
+
+## 2026-07-18: Imagenette SiT Evaluator And REPA Snapshot
+
+### Goal
+
+Create a reproducible quality-evaluation protocol, freeze the latest REPA state, and determine whether the observed visual plateau reflects a VAE limitation, sampler choice, or the learned generative model.
+
+### Outcome
+
+- Stopped the requested REPA run and copied its atomically saved step-365k checkpoint to immutable `step_0365000.pt` after SHA-256 verification.
+- Added an evaluator with a shared fixed class/seed/noise protocol, cached ImageNet-Inception reference features, KID/FID, ImageNet ResNet class metrics, feature precision/recall, pixel diagnostics, nearest-real/outlier grids, and raw/EMA/Heun controls.
+- Quick evaluation selected REPA 350k provisionally among the available REPA milestones; this is not a final REPA claim because no baseline 150k exists.
+- VAE validation reconstruction was substantially better than all generated checkpoints, so VAE decoding is not the primary explanation for the plateau.
+- A 256-image garbage-truck generative overfit run reached recognisable raw SiT samples by 20k. Its 0.9999 EMA samples were still blurred, showing that short-run periodic EMA previews can lag far behind the learned raw model.
+
+Detailed results: [`reports/imagenette_sit_evaluator_setup.md`](reports/imagenette_sit_evaluator_setup.md)
+
+### Decision
+
+Use the evaluator protocol for future equal-step baseline-vs-REPA comparisons. Keep DINO metrics supplemental, never the sole quality judge. Do not change objective, scaling, or sampler mathematics based on the plateau alone; inspect raw and EMA side-by-side when evaluating short or restarted runs.

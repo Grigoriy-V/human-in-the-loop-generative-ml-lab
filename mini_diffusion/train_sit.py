@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 import sys
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,6 +61,12 @@ def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
         kwargs.pop("fused", None); print("warning: fused AdamW unavailable; using AdamW"); return torch.optim.AdamW(model.parameters(), **kwargs)
 def make_loader(cfg: dict, repa_enabled: bool = False) -> tuple[DataLoader, dict]:
     payload = load_cache(Path(cfg["data"]["cache_dir"]) / "train.pt", expected_resolution=cfg["data"]["resolution"], expected_vae_model_id=cfg["vae"]["model_id"])
+    class_filter = cfg["data"].get("class_filter")
+    if class_filter is not None:
+        selected = (payload["labels"] == int(class_filter)).nonzero(as_tuple=True)[0]
+        if len(selected) == 0:
+            raise ValueError(f"No cached train latents found for class_filter={class_filter}")
+        payload = {**payload, "latents": payload["latents"][selected], "labels": payload["labels"][selected], "relative_paths": [payload["relative_paths"][index] for index in selected.tolist()]}
     cache_limit = cfg["data"].get("cache_limit")
     if cache_limit is not None:
         payload = {**payload, "latents": payload["latents"][:cache_limit], "labels": payload["labels"][:cache_limit], "relative_paths": payload["relative_paths"][:cache_limit]}
@@ -73,12 +81,22 @@ def make_loader(cfg: dict, repa_enabled: bool = False) -> tuple[DataLoader, dict
     return loader, payload
 def infinite(loader):
     while True: yield from loader
-def save_checkpoint(path: Path, model, optimizer, ema, cfg, step: int, fingerprint: str, projector: nn.Module | None = None, feature_metadata: dict | None = None) -> None:
+def save_checkpoint(path: Path, model, optimizer, ema, cfg, step: int, fingerprint: str, projector: nn.Module | None = None, feature_metadata: dict | None = None, *, overwrite: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and not overwrite:
+        raise FileExistsError(f"Refusing to overwrite immutable milestone checkpoint: {path}")
     payload = {"architecture": "SiT-S/2 velocity v1", "model": model.state_dict(), "ema": ema.state_dict(), "optimizer": optimizer.state_dict(), "global_step": step, "config": cfg, "cache_fingerprint": fingerprint, "torch_rng_state": torch.get_rng_state(), "cuda_rng_state": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None, "numpy_rng_state": np.random.get_state(), "python_rng_state": random.getstate()}
     if projector is not None:
         payload.update({"repa_format_version": 1, "repa_projector": projector.state_dict(), "repa": cfg["repa"], "feature_cache_metadata": feature_metadata})
-    torch.save(payload, path)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        torch.save(payload, temporary)
+        if path.exists() and not overwrite:
+            raise FileExistsError(f"Refusing to overwrite immutable milestone checkpoint: {path}")
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 def resume_checkpoint(path: str, model, optimizer, ema, device, expected_cache_fingerprint: str | None = None, projector: nn.Module | None = None, expected_feature_fingerprint: str | None = None) -> int:
     # Keep CPU RNG state on CPU; map_location=device would incorrectly move it to CUDA.
     ckpt = torch.load(path, map_location="cpu", weights_only=False); model.load_state_dict(ckpt["model"]); ema.load_state_dict(ckpt["ema"]); optimizer.load_state_dict(ckpt["optimizer"]); torch.set_rng_state(ckpt["torch_rng_state"].cpu()); np.random.set_state(ckpt["numpy_rng_state"]); random.setstate(ckpt["python_rng_state"])
@@ -112,7 +130,10 @@ def overfit_smoke(cfg: dict, updates: int) -> None:
     if not math.isfinite(last) or last >= first * 0.8: raise RuntimeError("One-batch overfit failed")
 @torch.inference_mode()
 def write_latent_preview(model, ema, cfg: dict, device: torch.device, step: int) -> Path:
-    sampling = cfg.get("sampling", {}); count = int(sampling.get("preview_count", 4)); labels = torch.arange(count, device=device) % cfg["data"]["num_classes"]
+    sampling = cfg.get("sampling", {}); count = int(sampling.get("preview_count", 4))
+    preview_class = sampling.get("preview_class")
+    labels = (torch.full((count,), int(preview_class), device=device, dtype=torch.long) if preview_class is not None
+              else torch.arange(count, device=device) % cfg["data"]["num_classes"])
     generator = torch.Generator(device=device).manual_seed(int(sampling.get("preview_seed", cfg.get("seed", 123))))
     with ema.average_parameters(model):
         latents = sample_ode(model, (count, 4, cfg["data"]["latent_resolution"], cfg["data"]["latent_resolution"]), labels, device, steps=int(sampling.get("preview_steps", 50)), sampler=sampling.get("preview_sampler", "heun"), guidance_scale=float(sampling.get("guidance_scale", 1.5)), generator=generator, diagnostics=True).cpu()
@@ -167,7 +188,14 @@ def main() -> None:
             if projector: writer.add_scalar("train/repa_loss", float(alignment_loss.detach()), step); writer.add_scalar("train/cosine_similarity", float(cosine.detach()), step); writer.add_scalar("train/repa_coefficient", float(cfg["repa"]["coefficient"]), step)
             pbar.set_postfix(loss=f"{total:.4f}")
         if step % cfg["train"].get("sample_every", 10**9) == 0: print(f"latent_preview_written: {write_latent_preview(model, ema, cfg, device, step)}")
-        if step % cfg["train"].get("save_every", 100) == 0: save_checkpoint(latest, model, optimizer, ema, cfg, step, cache_fingerprint(payload), projector, feature_metadata); print(f"checkpoint_written: {latest}")
+        if step % cfg["train"].get("save_every", 100) == 0:
+            save_checkpoint(latest, model, optimizer, ema, cfg, step, cache_fingerprint(payload), projector, feature_metadata)
+            print(f"checkpoint_written: {latest}")
+        milestone_every = int(cfg["train"].get("milestone_every", 0))
+        if milestone_every and step % milestone_every == 0:
+            milestone = out / "checkpoints" / f"step_{step:07d}.pt"
+            save_checkpoint(milestone, model, optimizer, ema, cfg, step, cache_fingerprint(payload), projector, feature_metadata, overwrite=False)
+            print(f"milestone_checkpoint_written: {milestone}")
     save_checkpoint(latest, model, optimizer, ema, cfg, step, cache_fingerprint(payload), projector, feature_metadata); writer.close(); pbar.close()
     if device.type == "cuda": print(f"cuda_vram_peak_allocated_gb: {torch.cuda.max_memory_allocated() / 1024**3:.2f}\ncuda_vram_peak_reserved_gb: {torch.cuda.max_memory_reserved() / 1024**3:.2f}")
     print(f"checkpoint_written: {latest}")

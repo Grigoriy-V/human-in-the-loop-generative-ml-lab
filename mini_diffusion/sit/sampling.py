@@ -15,12 +15,19 @@ def _velocity(model, x: torch.Tensor, t: torch.Tensor, labels: torch.Tensor | No
 @torch.inference_mode()
 def sample_ode(model, shape: tuple[int, ...], labels: torch.Tensor | None, device: torch.device, *, steps: int = 50,
                sampler: str = "heun", guidance_scale: float = 1.0, generator: torch.Generator | None = None,
-               diagnostics: bool = False) -> torch.Tensor:
+               diagnostics: bool = False, initial_noise: torch.Tensor | None = None) -> torch.Tensor:
     if sampler not in {"euler", "heun"}:
         raise ValueError("sampler must be 'euler' or 'heun'")
     if steps < 1:
         raise ValueError("steps must be positive")
-    x = torch.randn(shape, device=device, dtype=torch.float32, generator=generator)
+    if initial_noise is None:
+        x = torch.randn(shape, device=device, dtype=torch.float32, generator=generator)
+    else:
+        if tuple(initial_noise.shape) != shape:
+            raise ValueError("initial_noise shape must match shape")
+        if not torch.isfinite(initial_noise).all():
+            raise ValueError("initial_noise must be finite")
+        x = initial_noise.to(device=device, dtype=torch.float32).clone()
     times = torch.linspace(1.0, 0.0, steps + 1, device=device, dtype=torch.float32)
     was_training = model.training
     model.eval()
