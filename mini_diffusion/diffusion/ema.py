@@ -7,8 +7,9 @@ from torch import nn
 
 
 class EMA:
-    def __init__(self, model: nn.Module, decay: float = 0.9999):
+    def __init__(self, model: nn.Module, decay: float = 0.9999, foreach: bool = False):
         self.decay = decay
+        self.foreach = foreach
         self.shadow = {
             name: p.detach().clone()
             for name, p in model.named_parameters()
@@ -17,6 +18,15 @@ class EMA:
 
     @torch.no_grad()
     def update(self, model: nn.Module) -> None:
+        if self.foreach:
+            names_and_params = [
+                (name, p.detach()) for name, p in model.named_parameters() if p.requires_grad
+            ]
+            shadows = [self.shadow[name] for name, _ in names_and_params]
+            params = [p for _, p in names_and_params]
+            torch._foreach_mul_(shadows, self.decay)
+            torch._foreach_add_(shadows, params, alpha=1.0 - self.decay)
+            return
         for name, p in model.named_parameters():
             if not p.requires_grad:
                 continue

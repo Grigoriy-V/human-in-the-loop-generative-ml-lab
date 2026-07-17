@@ -30,6 +30,7 @@ class UNet(nn.Module):
         class_cond: bool = True,
         cond_drop_prob: float = 0.0,
         num_heads: int = 1,
+        attention_backend: str = "manual",
     ):
         super().__init__()
         self.image_size = image_size
@@ -58,7 +59,7 @@ class UNet(nn.Module):
                 layers = nn.ModuleList([ResBlock(ch, out_ch, time_dim, dropout)])
                 ch = out_ch
                 if resolution in attention_resolutions:
-                    layers.append(AttentionBlock(ch, num_heads))
+                    layers.append(AttentionBlock(ch, num_heads, attention_backend))
                 self.downs.append(layers)
                 skip_channels.append(ch)
             if level != len(channel_mults) - 1:
@@ -66,7 +67,7 @@ class UNet(nn.Module):
                 resolution //= 2
 
         self.mid1 = ResBlock(ch, ch, time_dim, dropout)
-        self.mid_attn = AttentionBlock(ch, num_heads)
+        self.mid_attn = AttentionBlock(ch, num_heads, attention_backend)
         self.mid2 = ResBlock(ch, ch, time_dim, dropout)
 
         self.ups = nn.ModuleList()
@@ -77,7 +78,7 @@ class UNet(nn.Module):
                 layers = nn.ModuleList([ResBlock(ch + skip_ch, out_ch, time_dim, dropout)])
                 ch = out_ch
                 if resolution in attention_resolutions:
-                    layers.append(AttentionBlock(ch, num_heads))
+                    layers.append(AttentionBlock(ch, num_heads, attention_backend))
                 self.ups.append(layers)
             if level != 0:
                 self.ups.append(nn.ModuleList([Upsample(ch)]))

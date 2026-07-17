@@ -1,0 +1,53 @@
+name: cifar10_optimized
+output_dir: outputs/cifar10_optimized
+seed: 123
+data:
+  dataset: cifar10
+  root: datasets
+  mirror_url: https://data.brainchip.com/dataset-mirror/cifar10/cifar-10-python.tar.gz
+  resolution: 32
+  num_classes: 10
+  batch_size: 128
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  non_blocking: true
+model:
+  base_channels: 88
+  channel_mults: [1, 2, 2, 4]
+  num_res_blocks: 2
+  attention_resolutions: [8]
+  dropout: 0.1
+  class_cond: true
+  cond_drop_prob: 0.1
+  num_heads: 1
+diffusion:
+  steps: 1000
+  schedule: cosine
+train:
+  max_steps: 200000
+  learning_rate: 0.0002
+  weight_decay: 0.01
+  grad_accum_steps: 1
+  grad_clip: 1.0
+  ema_decay: 0.9999
+  dtype: bf16
+  log_every: 50
+  save_every: 2000
+  sample_every: 2000
+  sample_count: 16
+sampling:
+  preview_sampler: ddim
+  preview_steps: 50
+  preview_seed: 123
+  guidance_scale: 1.5
+  diagnostics: true
+performance:
+  scalar_log_every: 50
+  ema_foreach: true
+  fused_adamw: true
+  cudnn_benchmark: true
+  channels_last: false
+  attention_backend: manual
+  compile_mode: none

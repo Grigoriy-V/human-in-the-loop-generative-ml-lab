@@ -48,9 +48,12 @@ class ResBlock(nn.Module):
 
 
 class AttentionBlock(nn.Module):
-    def __init__(self, channels: int, num_heads: int = 1):
+    def __init__(self, channels: int, num_heads: int = 1, backend: str = "manual"):
         super().__init__()
+        if backend not in {"manual", "sdpa"}:
+            raise ValueError(f"Unsupported attention backend: {backend}")
         self.num_heads = num_heads
+        self.backend = backend
         self.norm = group_norm(channels)
         self.qkv = nn.Conv1d(channels, channels * 3, 1)
         self.proj = nn.Conv1d(channels, channels, 1)
@@ -63,8 +66,18 @@ class AttentionBlock(nn.Module):
         q = q.view(b, self.num_heads, head_dim, h * w)
         k = k.view(b, self.num_heads, head_dim, h * w)
         v = v.view(b, self.num_heads, head_dim, h * w)
-        attn = torch.einsum("bhcn,bhcm->bhnm", q * (head_dim**-0.5), k).softmax(dim=-1)
-        out = torch.einsum("bhnm,bhcm->bhcn", attn, v).reshape(b, c, h * w)
+        if self.backend == "sdpa":
+            out = F.scaled_dot_product_attention(
+                q.transpose(-2, -1),
+                k.transpose(-2, -1),
+                v.transpose(-2, -1),
+                dropout_p=0.0,
+                is_causal=False,
+            ).transpose(-2, -1)
+            out = out.contiguous().view(b, c, h * w)
+        else:
+            attn = torch.einsum("bhcn,bhcm->bhnm", q * (head_dim**-0.5), k).softmax(dim=-1)
+            out = torch.einsum("bhnm,bhcm->bhcn", attn, v).reshape(b, c, h * w)
         return x + self.proj(out).view(b, c, h, w)
 
 

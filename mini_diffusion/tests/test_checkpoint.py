@@ -67,3 +67,22 @@ def test_checkpoint_round_trip(tmp_path):
     assert torch.equal(torch.rand(4), expected_torch_random)
     assert np.array_equal(np.random.rand(4), expected_numpy_random)
     assert [random.random() for _ in range(4)] == expected_python_random
+
+
+def test_foreach_ema_matches_reference_and_keeps_checkpoint_schema():
+    torch.manual_seed(9)
+    reference_model = torch.nn.Sequential(torch.nn.Linear(8, 16), torch.nn.Linear(16, 4))
+    foreach_model = copy.deepcopy(reference_model)
+    reference = EMA(reference_model, decay=0.9, foreach=False)
+    foreach = EMA(foreach_model, decay=0.9, foreach=True)
+
+    with torch.no_grad():
+        for parameter in reference_model.parameters():
+            parameter.add_(torch.randn_like(parameter) * 0.01)
+        foreach_model.load_state_dict(reference_model.state_dict())
+    reference.update(reference_model)
+    foreach.update(foreach_model)
+
+    assert set(foreach.state_dict()) == {"decay", "shadow"}
+    for name in reference.shadow:
+        torch.testing.assert_close(foreach.shadow[name], reference.shadow[name])

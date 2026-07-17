@@ -1,0 +1,35 @@
+{
+  "experiment_id": "FINAL_OPTIMIZED",
+  "runs": 5,
+  "warmup_steps_per_run": 30,
+  "measured_steps_per_run": 200,
+  "images_per_second": {
+    "median": 2272.916346102976,
+    "mean": 2270.3883577603515,
+    "min": 2260.3330063943167,
+    "max": 2276.7655805711966
+  },
+  "iterations_per_second_median": 17.7571589539295,
+  "wall_step_seconds": {
+    "median": 0.05631531500024721,
+    "mean": 0.056378379600006155
+  },
+  "gpu_step_seconds_median": 0.055613952636718755,
+  "gpu_step_seconds_p95_median": 0.06313389930725097,
+  "data_seconds_mean_median": 9.256949881091713e-05,
+  "transfer_seconds_mean_median": 0.00010321727994829416,
+  "gpu_utilization_mean_median": 89.24324324324324,
+  "historical_baseline_images_per_second": 1787.5728452494807,
+  "repeated_a0_images_per_second_median": 1812.3886363381846,
+  "improvement_vs_historical_percent": 27.150977491256256,
+  "improvement_vs_a0_percent": 25.40998660724658,
+  "batch_size": 128,
+  "effective_batch_size": 128,
+  "dtype": "torch.bfloat16",
+  "device_name": "NVIDIA GeForce RTX 4090",
+  "trainable_parameters": 27285107,
+  "cuda_peak_allocated_gb": 3.1181063652038574,
+  "cuda_peak_reserved_gb": 3.56640625,
+  "finite_loss_all_runs": true,
+  "source_log": "reports/performance_experiments.jsonl"
+}

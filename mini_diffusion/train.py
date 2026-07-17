@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import random
 import sys
-from itertools import cycle
 from pathlib import Path
+from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -56,16 +57,77 @@ def build_dataset(cfg: dict):
 
 def build_loader(cfg: dict, shuffle: bool = True) -> DataLoader:
     data = cfg["data"]
-    return DataLoader(
-        build_dataset(cfg),
-        batch_size=data["batch_size"],
-        shuffle=shuffle,
-        num_workers=data.get("num_workers", 0),
-        pin_memory=torch.cuda.is_available(),
-        drop_last=True,
-    )
+    workers = int(data.get("num_workers", 0))
+    kwargs = {
+        "dataset": build_dataset(cfg),
+        "batch_size": data["batch_size"],
+        "shuffle": shuffle,
+        "num_workers": workers,
+        "pin_memory": data.get("pin_memory", torch.cuda.is_available()),
+        "drop_last": True,
+    }
+    if workers > 0:
+        kwargs["persistent_workers"] = bool(data.get("persistent_workers", False))
+        kwargs["prefetch_factor"] = int(data.get("prefetch_factor", 2))
+    return DataLoader(**kwargs)
 
 
+def infinite_loader(loader: DataLoader) -> Iterator[tuple[torch.Tensor, torch.Tensor]]:
+    while True:
+        yield from loader
+
+
+def configure_backends(cfg: dict) -> None:
+    performance = cfg.get("performance", {})
+    torch.backends.cudnn.benchmark = bool(performance.get("cudnn_benchmark", False))
+
+
+def move_images(images: torch.Tensor, device: torch.device, cfg: dict) -> torch.Tensor:
+    non_blocking = bool(cfg["data"].get("non_blocking", True))
+    images = images.to(device, non_blocking=non_blocking)
+    if cfg.get("performance", {}).get("channels_last", False):
+        images = images.contiguous(memory_format=torch.channels_last)
+    return images
+
+
+def move_labels(labels: torch.Tensor, device: torch.device, cfg: dict) -> torch.Tensor:
+    return labels.to(device, non_blocking=bool(cfg["data"].get("non_blocking", True)))
+
+
+def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
+    kwargs = {
+        "lr": cfg["train"]["learning_rate"],
+        "weight_decay": cfg["train"].get("weight_decay", 0.0),
+    }
+    if cfg.get("performance", {}).get("fused_adamw", False):
+        kwargs["fused"] = True
+    try:
+        return torch.optim.AdamW(model.parameters(), **kwargs)
+    except (RuntimeError, TypeError):
+        if "fused" not in kwargs:
+            raise
+        print("warning: fused AdamW unavailable; falling back to standard AdamW")
+        kwargs.pop("fused")
+        return torch.optim.AdamW(model.parameters(), **kwargs)
+
+
+def prepare_train_model(
+    model: nn.Module, cfg: dict, device: torch.device
+) -> tuple[nn.Module, str]:
+    compile_mode = cfg.get("performance", {}).get("compile_mode", "none")
+    if compile_mode == "none":
+        return model, "eager"
+    if not hasattr(torch, "compile"):
+        print("warning: torch.compile unavailable; using eager model")
+        return model, "eager_fallback_unavailable"
+    if device.type == "cuda" and importlib.util.find_spec("triton") is None:
+        print("warning: torch.compile CUDA backend requires Triton; using eager model")
+        return model, "eager_fallback_missing_triton"
+    try:
+        return torch.compile(model, mode=compile_mode), f"compiled_{compile_mode}"
+    except Exception as exc:
+        print(f"warning: torch.compile setup failed; using eager model: {exc}")
+        return model, "eager_fallback_setup_error"
 def build_model(cfg: dict) -> UNet:
     model_cfg = cfg["model"]
     data_cfg = cfg["data"]
@@ -82,6 +144,7 @@ def build_model(cfg: dict) -> UNet:
         class_cond=model_cfg.get("class_cond", True),
         cond_drop_prob=model_cfg.get("cond_drop_prob", 0.0),
         num_heads=model_cfg.get("num_heads", 1),
+        attention_backend=cfg.get("performance", {}).get("attention_backend", "manual"),
     )
 
 
@@ -174,6 +237,8 @@ def write_samples(
     sampling_cfg = cfg.get("sampling", {})
     seed = int(sampling_cfg.get("preview_seed", cfg.get("seed", 123)))
     guidance_scale = float(sampling_cfg.get("guidance_scale", 1.5))
+    sampler = str(sampling_cfg.get("preview_sampler", "ddpm"))
+    ddim_steps = int(sampling_cfg.get("preview_steps", 50))
     generator = make_generator(device, seed)
     was_training = model.training
     try:
@@ -186,6 +251,8 @@ def write_samples(
                 guidance_scale=guidance_scale,
                 device=device,
                 generator=generator,
+                sampler=sampler,
+                ddim_steps=ddim_steps,
             )
     finally:
         model.train(was_training)
@@ -214,16 +281,20 @@ def print_runtime_summary(cfg: dict, model: nn.Module, device: torch.device, dty
 
 def train(cfg: dict, resume: str | None = None) -> Path:
     set_seed(cfg.get("seed", 123))
+    configure_backends(cfg)
     device = choose_device()
     dtype, use_autocast = choose_dtype(device, cfg["train"].get("dtype", "bf16"))
     model = build_model(cfg).to(device)
+    performance = cfg.get("performance", {})
+    if performance.get("channels_last", False):
+        model = model.to(memory_format=torch.channels_last)
     diffusion = build_diffusion(cfg).to(device)
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=cfg["train"]["learning_rate"],
-        weight_decay=cfg["train"].get("weight_decay", 0.0),
+    optimizer = build_optimizer(model, cfg)
+    ema = EMA(
+        model,
+        decay=cfg["train"].get("ema_decay", 0.9999),
+        foreach=bool(performance.get("ema_foreach", False)),
     )
-    ema = EMA(model, decay=cfg["train"].get("ema_decay", 0.9999))
     global_step = 0
     if resume:
         _, global_step = load_checkpoint(resume, model, optimizer, ema, map_location=device)
@@ -231,38 +302,50 @@ def train(cfg: dict, resume: str | None = None) -> Path:
         print(f"resume_global_step: {global_step}")
 
     print_runtime_summary(cfg, model, device, dtype, use_autocast)
-    loader = cycle(build_loader(cfg))
+    loader = infinite_loader(build_loader(cfg))
     out_dir = Path(cfg["output_dir"])
     ckpt_dir = out_dir / "checkpoints"
     writer = SummaryWriter(out_dir / "logs")
     max_steps = cfg["train"]["max_steps"]
     accum = cfg["train"].get("grad_accum_steps", 1)
     latest_path = ckpt_dir / "latest.pt"
+    train_model, compile_status = prepare_train_model(model, cfg, device)
+    print(f"compile_status: {compile_status}")
 
     model.train()
     pbar = tqdm(total=max_steps, initial=global_step, desc=cfg["name"])
     while global_step < max_steps:
         optimizer.zero_grad(set_to_none=True)
-        total_loss = 0.0
+        total_loss = torch.zeros((), device=device)
         for _ in range(accum):
             images, labels = next(loader)
-            images = images.to(device, non_blocking=True)
-            labels = labels.to(device, non_blocking=True)
+            images = move_images(images, device, cfg)
+            labels = move_labels(labels, device, cfg)
             with torch.autocast(device_type=device.type, dtype=dtype, enabled=use_autocast):
-                loss = diffusion.loss(model, images, labels) / accum
+                loss = diffusion.loss(train_model, images, labels) / accum
             loss.backward()
-            total_loss += float(loss.detach().cpu()) * accum
+            total_loss += loss.detach() * accum
         if cfg["train"].get("grad_clip", 0) > 0:
             nn.utils.clip_grad_norm_(model.parameters(), cfg["train"]["grad_clip"])
         optimizer.step()
         ema.update(model)
         global_step += 1
         pbar.update(1)
-        writer.add_scalar("train/loss", total_loss, global_step)
-        if device.type == "cuda":
-            writer.add_scalar("system/cuda_peak_gb", torch.cuda.max_memory_allocated(device) / 1024**3, global_step)
+        scalar_log_every = int(performance.get("scalar_log_every", 1))
+        log_value = None
+        if global_step % scalar_log_every == 0:
+            log_value = float(total_loss.cpu())
+            writer.add_scalar("train/loss", log_value, global_step)
+            if device.type == "cuda":
+                writer.add_scalar(
+                    "system/cuda_peak_gb",
+                    torch.cuda.max_memory_allocated(device) / 1024**3,
+                    global_step,
+                )
         if global_step % cfg["train"].get("log_every", 50) == 0:
-            pbar.set_postfix(loss=f"{total_loss:.4f}")
+            if log_value is None:
+                log_value = float(total_loss.cpu())
+            pbar.set_postfix(loss=f"{log_value:.4f}")
         if global_step % cfg["train"].get("sample_every", 1000) == 0:
             sample_path = write_samples(model, diffusion, ema, cfg, device, global_step)
             print(f"sample_written: {sample_path}")
@@ -283,14 +366,20 @@ def overfit_smoke(cfg: dict, updates: int = 40) -> None:
     cfg = json.loads(json.dumps(cfg))
     cfg["data"]["num_workers"] = 0
     set_seed(cfg.get("seed", 123))
+    configure_backends(cfg)
     device = choose_device()
     dtype, use_autocast = choose_dtype(device, cfg["train"].get("dtype", "bf16"))
     model = build_model(cfg).to(device)
+    if cfg.get("performance", {}).get("channels_last", False):
+        model = model.to(memory_format=torch.channels_last)
     diffusion = build_diffusion(cfg).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=max(cfg["train"]["learning_rate"], 1e-3))
+    smoke_cfg = json.loads(json.dumps(cfg))
+    smoke_cfg["train"]["learning_rate"] = max(cfg["train"]["learning_rate"], 1e-3)
+    smoke_cfg["train"]["weight_decay"] = 0.0
+    optimizer = build_optimizer(model, smoke_cfg)
     images, labels = next(iter(build_loader(cfg, shuffle=False)))
-    images = images.to(device)
-    labels = labels.to(device)
+    images = move_images(images, device, cfg)
+    labels = move_labels(labels, device, cfg)
     t = torch.randint(0, diffusion.steps, (images.shape[0],), device=device, dtype=torch.long)
     noise = torch.randn_like(images)
     xt = diffusion.q_sample(images, t, noise)

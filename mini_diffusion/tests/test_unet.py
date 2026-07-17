@@ -2,6 +2,7 @@ import torch
 from torch.nn import functional as F
 
 from mini_diffusion.diffusion import GaussianDiffusion, UNet
+from mini_diffusion.diffusion.blocks import AttentionBlock
 
 
 def small_unet(class_cond: bool = True):
@@ -59,3 +60,20 @@ def test_synthetic_one_batch_overfit_decreases_loss():
         optimizer.step()
         losses.append(float(loss.detach()))
     assert losses[-1] < losses[0] * 0.95
+
+
+def test_sdpa_attention_matches_manual_forward_and_backward():
+    torch.manual_seed(17)
+    manual = AttentionBlock(32, num_heads=4, backend="manual")
+    sdpa = AttentionBlock(32, num_heads=4, backend="sdpa")
+    sdpa.load_state_dict(manual.state_dict())
+    x_manual = torch.randn(2, 32, 8, 8, requires_grad=True)
+    x_sdpa = x_manual.detach().clone().requires_grad_(True)
+
+    out_manual = manual(x_manual)
+    out_sdpa = sdpa(x_sdpa)
+    torch.testing.assert_close(out_sdpa, out_manual, rtol=1e-5, atol=1e-6)
+
+    out_manual.square().mean().backward()
+    out_sdpa.square().mean().backward()
+    torch.testing.assert_close(x_sdpa.grad, x_manual.grad, rtol=2e-5, atol=2e-6)

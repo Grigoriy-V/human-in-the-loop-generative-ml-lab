@@ -30,6 +30,31 @@ def test_short_sampling_run_creates_image(tmp_path):
     assert path.stat().st_size > 0
 
 
+def test_ddim_sampling_is_finite_and_deterministic():
+    torch.manual_seed(23)
+    model = build_tiny_model()
+    diffusion = GaussianDiffusion(steps=8, schedule="linear")
+    labels = torch.tensor([1])
+    first = diffusion.sample(
+        model,
+        (1, 3, 16, 16),
+        labels=labels,
+        generator=make_generator("cpu", 41),
+        sampler="ddim",
+        ddim_steps=4,
+    )
+    second = diffusion.sample(
+        model,
+        (1, 3, 16, 16),
+        labels=labels,
+        generator=make_generator("cpu", 41),
+        sampler="ddim",
+        ddim_steps=4,
+    )
+    assert torch.isfinite(first).all()
+    assert torch.equal(first, second)
+
+
 def test_sampling_is_deterministic_and_does_not_change_global_rng_or_parameters():
     model = build_tiny_model().eval()
     diffusion = GaussianDiffusion(steps=2, schedule="linear")
@@ -65,15 +90,22 @@ def test_periodic_sampling_is_repeatable_and_restores_training_mode(tmp_path):
         "seed": 17,
         "data": {"resolution": 16, "num_classes": 2},
         "train": {"sample_count": 4},
-        "sampling": {"preview_seed": 29, "guidance_scale": 1.0},
+        "sampling": {
+            "preview_seed": 29,
+            "guidance_scale": 1.0,
+            "preview_sampler": "ddim",
+            "preview_steps": 2,
+        },
     }
     parameters = {name: value.detach().clone() for name, value in model.state_dict().items()}
+    rng_state = torch.get_rng_state().clone()
 
     first = write_samples(model, diffusion, ema, cfg, torch.device("cpu"), step=1)
     second = write_samples(model, diffusion, ema, cfg, torch.device("cpu"), step=2)
 
     assert first.read_bytes() == second.read_bytes()
     assert model.training
+    assert torch.equal(torch.get_rng_state(), rng_state)
     for name, value in model.state_dict().items():
         assert torch.equal(value, parameters[name])
 

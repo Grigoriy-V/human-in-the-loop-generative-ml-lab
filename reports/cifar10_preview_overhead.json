@@ -1,0 +1,33 @@
+{
+  "ddim25": {
+    "seconds": 0.8101529999403283,
+    "sampler": "ddim",
+    "steps": 25,
+    "sample_count": 16,
+    "png": "outputs\\perf\\preview_overhead\\ddim25\\samples\\step_0200000.png"
+  },
+  "ddim50": {
+    "seconds": 0.9660254999762401,
+    "sampler": "ddim",
+    "steps": 50,
+    "sample_count": 16,
+    "png": "outputs\\perf\\preview_overhead\\ddim50\\samples\\step_0200000.png"
+  },
+  "ddpm1000": {
+    "seconds": 19.886669700033963,
+    "sampler": "ddpm",
+    "steps": 1000,
+    "sample_count": 16,
+    "png": "outputs\\perf\\preview_overhead\\ddpm1000\\samples\\step_0200000.png"
+  },
+  "checkpoint_save": {
+    "seconds": 0.34111400006804615,
+    "bytes": 436947051,
+    "path": "outputs\\perf\\preview_overhead\\checkpoint_save\\latest.pt"
+  },
+  "tensorboard_images": {
+    "seconds": 0.0,
+    "enabled_in_training": false,
+    "note": "The training loop writes scalars only; PNG preview time is included above."
+  }
+}
