@@ -2,6 +2,7 @@
 
 Date: 2026-07-17  
 Frozen baseline parent commit: `871987ffe00eb379fa38d117b8f1dde0f4237629`  
+Implementation commit: `a0319a8`  
 Status: implementation, cache preparation, smoke, and benchmark complete. Full REPA training was not started.
 
 ## Scope and implementation
