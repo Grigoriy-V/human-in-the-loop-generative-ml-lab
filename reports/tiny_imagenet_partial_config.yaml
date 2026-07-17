@@ -1,0 +1,52 @@
+name: tiny_imagenet
+output_dir: outputs/tiny_imagenet
+seed: 123
+data:
+  dataset: tiny_imagenet
+  root: datasets/tiny-imagenet-200
+  resolution: 64
+  num_classes: 200
+  batch_size: 64
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  non_blocking: true
+model:
+  base_channels: 104
+  channel_mults: [1, 2, 3, 4]
+  num_res_blocks: 2
+  attention_resolutions: [16, 8]
+  dropout: 0.1
+  class_cond: true
+  cond_drop_prob: 0.1
+  num_heads: 1
+diffusion:
+  steps: 1000
+  schedule: cosine
+train:
+  max_steps: 400000
+  learning_rate: 0.00015
+  weight_decay: 0.01
+  grad_accum_steps: 2
+  grad_clip: 1.0
+  ema_decay: 0.9999
+  dtype: bf16
+  log_every: 50
+  save_every: 5000
+  sample_every: 5000
+  sample_count: 16
+sampling:
+  preview_sampler: ddim
+  preview_steps: 50
+  preview_seed: 123
+  guidance_scale: 1.5
+  diagnostics: true
+performance:
+  scalar_log_every: 50
+  ema_foreach: true
+  fused_adamw: true
+  cudnn_benchmark: true
+  channels_last: false
+  attention_backend: manual
+  compile_mode: none
