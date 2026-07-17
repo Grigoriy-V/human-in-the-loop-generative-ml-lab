@@ -243,3 +243,19 @@ Make periodic SiT previews directly inspectable as RGB PNGs during training rath
 ### Decision
 
 Keep decoded periodic previews enabled in the full Imagenette config. The next resumed training preview will occur at step 20,000; full training remains a user-controlled run.
+
+## 2026-07-17: Imagenette SiT-S/2 Baseline At 100k
+
+### Goal
+
+Freeze the completed 100,000-step Imagenette SiT-S/2 milestone with an immutable checkpoint copy and a fixed, repeatable EMA evaluation before the future REPA stage.
+
+### Outcome
+
+The finite step-100k model and EMA were copied from `latest.pt` to an SHA-identical baseline checkpoint. Standard Heun-50 evaluation produced 50 fixed samples for each CFG 1.0, 1.5, and 2.0. All images were valid 128x128 RGB PNGs without black/white failures. The repeated CFG 1.5 grid was byte-identical.
+
+Detailed evidence: [`reports/imagenette_sit_s_128_baseline_100k.md`](reports/imagenette_sit_s_128_baseline_100k.md)
+
+### Decision
+
+Use EMA Heun-50 with CFG 1.5 and the documented ten-class, five-seed protocol as the canonical pre-REPA baseline. Do not treat the 100k checkpoint as a completed long training run.
