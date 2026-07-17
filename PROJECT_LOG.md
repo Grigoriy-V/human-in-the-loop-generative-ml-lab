@@ -215,3 +215,17 @@ Detailed evidence: [`reports/imagenette_sit_s_128_performance_check.md`](reports
 ### Decision
 
 Set the first training milestone to 100,000 steps, log every 100 steps, and run fixed eight-image Heun-25 previews every 10,000 steps. Retain batch 256, workers 4, fused AdamW, foreach EMA, and the Heun-50 explicit CLI evaluation path. Full training remains unstarted.
+
+## 2026-07-17: Imagenette Full Latent Cache
+
+### Goal
+
+Prepare the full deterministic Imagenette-160 latent cache required by the approved 100k-step SiT training milestone.
+
+### Outcome
+
+The initial Windows four-worker run exposed a non-picklable local RGB transform. The transform was moved to module scope, after which cache preparation completed successfully: `9469` train and `3925` validation FP16 `[4,16,16]` latents, all finite and with all ten classes represented. The VAE reconstruction grid was also regenerated under the full output directory.
+
+### Decision
+
+Keep the Windows-safe module-level transform. Cache, grid, and VAE artifacts remain ignored; full training has not been started.

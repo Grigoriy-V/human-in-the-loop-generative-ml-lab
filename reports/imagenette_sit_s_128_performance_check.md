@@ -59,6 +59,6 @@ Decision: keep batch 256 and 4 workers. It is the fastest measured stable option
 
 ## Not Performed
 
-- Full cache preparation was not performed because it would create the prohibited primary cache.
-- Consequently, no benchmark against a full-cache population was performed.
+- At the time of this performance check, the primary cache did not exist and was intentionally not created. It was prepared later by an explicit user command: train `9469` and val `3925` finite FP16 latents. The benchmark results above remain debug-cache measurements and are not retroactively presented as full-cache loader measurements.
+- No benchmark against a full-cache population was performed.
 - No full training was started. No full-training checkpoint was created or modified.

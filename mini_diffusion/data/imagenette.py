@@ -10,6 +10,10 @@ from torchvision import datasets, transforms
 IMAGENETTE_160_URL = "https://s3.amazonaws.com/fast-ai-imageclas/imagenette2-160.tgz"
 
 
+def convert_rgb(image):
+    return image.convert("RGB")
+
+
 def imagenette_root(root: str | Path) -> Path:
     root = Path(root)
     return root / "imagenette2-160" if (root / "imagenette2-160").is_dir() else root
@@ -38,7 +42,7 @@ def build_imagenette(root: str | Path, split: str, resolution: int, download: bo
         raise ValueError("split must be train or val")
     dataset_root = ensure_imagenette(root, download=download)
     transform = transforms.Compose([
-        transforms.Lambda(lambda image: image.convert("RGB")),
+        transforms.Lambda(convert_rgb),
         transforms.Resize(resolution, interpolation=transforms.InterpolationMode.BICUBIC),
         transforms.CenterCrop(resolution), transforms.ToTensor(), transforms.Normalize([0.5] * 3, [0.5] * 3),
     ])
