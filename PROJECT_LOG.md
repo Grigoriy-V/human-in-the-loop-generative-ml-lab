@@ -229,3 +229,17 @@ The initial Windows four-worker run exposed a non-picklable local RGB transform.
 ### Decision
 
 Keep the Windows-safe module-level transform. Cache, grid, and VAE artifacts remain ignored; full training has not been started.
+
+## 2026-07-17: Imagenette Decoded Periodic Previews
+
+### Goal
+
+Make periodic SiT previews directly inspectable as RGB PNGs during training rather than requiring a manual latent decode after every sample interval.
+
+### Outcome
+
+`train_sit.py` now writes the existing latent preview and an EMA-decoded PNG when `sampling.preview_decode: true`. The VAE is loaded only for the preview, stays frozen, is excluded from the optimizer, and is released after decoding. An EMA Heun-25 grid was generated from the step-10,000 checkpoint to validate the path.
+
+### Decision
+
+Keep decoded periodic previews enabled in the full Imagenette config. The next resumed training preview will occur at step 20,000; full training remains a user-controlled run.

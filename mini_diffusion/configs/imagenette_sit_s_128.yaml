@@ -47,3 +47,4 @@ sampling:
   preview_seed: 123
   preview_count: 8
   guidance_scale: 1.5
+  preview_decode: true

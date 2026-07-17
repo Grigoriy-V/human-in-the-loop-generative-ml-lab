@@ -223,4 +223,4 @@ Benchmark the full SiT configuration before a future full training run:
 .\.venv\Scripts\python.exe mini_diffusion\benchmark_sit.py --config mini_diffusion\configs\imagenette_sit_s_128.yaml --output reports\imagenette_sit_benchmark.json
 ```
 
-The tested candidates selected physical batch `256` (no accumulation) on this RTX 4090. Do not interpret the debug training as a trained generative model: full Imagenette training has intentionally not been started.
+The tested candidates selected physical batch `256` (no accumulation) on this RTX 4090. `sampling.preview_decode: true` writes an EMA-decoded PNG alongside each periodic latent preview; the frozen VAE is loaded only during this preview step and is never optimized. Do not interpret the debug training as a trained generative model: full Imagenette training has intentionally not been started.

@@ -17,11 +17,13 @@ import yaml
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import save_image
 from tqdm import tqdm
 
 from mini_diffusion.diffusion import EMA
 from mini_diffusion.latent_cache import cache_fingerprint, load_cache
 from mini_diffusion.sit import SiT, linear_interpolant, sample_ode, velocity_loss
+from mini_diffusion.vae import decode_latents, load_frozen_vae
 
 
 def load_config(path: str | Path) -> dict: return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
@@ -79,7 +81,24 @@ def write_latent_preview(model, ema, cfg: dict, device: torch.device, step: int)
     generator = torch.Generator(device=device).manual_seed(int(sampling.get("preview_seed", cfg.get("seed", 123))))
     with ema.average_parameters(model):
         latents = sample_ode(model, (count, 4, cfg["data"]["latent_resolution"], cfg["data"]["latent_resolution"]), labels, device, steps=int(sampling.get("preview_steps", 50)), sampler=sampling.get("preview_sampler", "heun"), guidance_scale=float(sampling.get("guidance_scale", 1.5)), generator=generator, diagnostics=True).cpu()
-    path = Path(cfg["output_dir"]) / "latent_previews" / f"step_{step:07d}.pt"; path.parent.mkdir(parents=True, exist_ok=True); torch.save({"latents": latents, "labels": labels.cpu(), "seed": sampling.get("preview_seed", cfg.get("seed", 123)), "step": step}, path); return path
+    path = Path(cfg["output_dir"]) / "latent_previews" / f"step_{step:07d}.pt"; path.parent.mkdir(parents=True, exist_ok=True); torch.save({"latents": latents, "labels": labels.cpu(), "seed": sampling.get("preview_seed", cfg.get("seed", 123)), "step": step}, path)
+    if not sampling.get("preview_decode", False):
+        return path
+    vae = load_frozen_vae(cfg["vae"]["model_id"], device, cfg["vae"].get("revision"))
+    try:
+        images = decode_latents(vae, latents.to(device)).cpu()
+        pixels = ((images + 1.0) * 0.5).clamp(0, 1)
+        if pixels.shape != (count, 3, cfg["data"]["resolution"], cfg["data"]["resolution"]) or not torch.isfinite(pixels).all():
+            raise RuntimeError("Decoded preview is non-finite or has an invalid shape")
+        image_path = Path(cfg["output_dir"]) / "samples" / f"step_{step:07d}_ema_{sampling.get('preview_sampler', 'heun')}{sampling.get('preview_steps', 50)}.png"
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        save_image(pixels, image_path, nrow=max(1, int(count**0.5)))
+        print(f"decoded_preview_written: {image_path}")
+    finally:
+        del vae
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+    return path
 def main() -> None:
     parser = argparse.ArgumentParser(); parser.add_argument("--config", required=True); parser.add_argument("--resume"); parser.add_argument("--max-steps", type=int); parser.add_argument("--overfit-smoke", action="store_true"); parser.add_argument("--overfit-updates", type=int, default=40); args = parser.parse_args()
     cfg = load_config(args.config)
