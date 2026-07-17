@@ -1,0 +1,69 @@
+A0:
+  decision: control
+  notes: Historical baseline reproduced within benchmark noise.
+B256:
+  decision: reject
+  notes: Windows workers restarted at the epoch boundary without persistent_workers.
+B256_PERSIST:
+  decision: keep_finding
+  notes: Persistent workers removed the Windows epoch-boundary stall.
+B512_PERSIST:
+  decision: throughput_only
+  notes: Best practical hardware-throughput batch with reasonable VRAM headroom.
+B768_PERSIST:
+  decision: reject
+  notes: No meaningful gain over 512 and substantially less VRAM headroom.
+L_EMA_FOREACH:
+  decision: keep
+  notes: EMA CUDA time fell from about 4 ms to about 0.64 ms.
+L_FUSED_ADAMW:
+  decision: reject_independent
+  notes: Independent end-to-end improvement was below benchmark noise.
+L_LOG50:
+  decision: keep
+  notes: Avoiding per-step scalar synchronization improved throughput.
+C_CHANNELS_LAST:
+  decision: reject
+  notes: Stable throughput regression for this GroupNorm-heavy U-Net.
+C_CUDNN_BENCHMARK:
+  decision: keep
+  notes: Borderline independent gain became substantial in the combined configuration.
+C_CHANNELS_LAST_CUDNN:
+  decision: reject
+  notes: cuDNN autotune did not recover a meaningful channels-last gain.
+T_SDPA:
+  decision: reject_cifar10
+  notes: Correct but no CIFAR-10 throughput improvement; reconsider for Tiny ImageNet.
+D_WORKERS0:
+  decision: reject_full_run
+  notes: Keep only for Windows-safe debug configurations.
+D_WORKERS2:
+  decision: keep
+  notes: Same throughput class as 4/8 workers with fewer Windows processes.
+D_WORKERS8:
+  decision: reject
+  notes: No gain over two workers and one run showed more variance.
+D_UNPINNED_BLOCKING:
+  decision: reject
+  notes: Slower transfer and lower throughput.
+D_PINNED_BLOCKING:
+  decision: reject
+  notes: No advantage over pinned non-blocking transfer.
+D_PREFETCH4:
+  decision: reject
+  notes: No gain over prefetch_factor 2.
+X_LOG_EMA:
+  decision: keep
+  notes: Scalar logging and foreach EMA combine cleanly.
+X_LOG_EMA_CUDNN:
+  decision: keep
+  notes: cuDNN autotune provides a reproducible combined gain.
+X_FINAL_FUSED:
+  decision: keep
+  notes: Five-run check confirmed fused AdamW helps the final combination.
+K_COMPILE_UNSUPPORTED:
+  decision: unsupported
+  notes: Native Windows CUDA environment has no supported Triton installation.
+FINAL_OPTIMIZED:
+  decision: keep
+  notes: Final baseline-semantics configuration.

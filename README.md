@@ -69,7 +69,13 @@ Generate a PNG grid:
 .\.venv\Scripts\python.exe mini_diffusion\sample.py --checkpoint outputs\cifar10_debug\checkpoints\latest.pt --classes 0 1 2 3 --seeds 10 20 30 40 --guidance-scale 1.5 --output outputs\samples\cifar10_debug
 ```
 
-Sampling uses a dedicated generator for each seed, FP32 DDPM reverse steps, and EMA weights by default. Use `--weights raw` for the unsmoothed training weights or `--sampling-diagnostics` to print min/max/mean/std, finite status, saturation rate, and black/white failure counts.
+Sampling uses a dedicated generator for each seed, FP32 reverse steps, and EMA weights by default. DDPM remains the default final-evaluation sampler. A deterministic DDIM path is available for fast previews:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\sample.py --checkpoint outputs\cifar10\checkpoints\latest.pt --classes 0 1 2 3 --seeds 10 20 30 40 --guidance-scale 1.5 --sampler ddim --ddim-steps 50 --output outputs\samples\cifar10_ddim50
+```
+
+Use `--weights raw` for unsmoothed weights or `--sampling-diagnostics` to print min/max/mean/std, finite status, saturation rate, and black/white failure counts.
 
 Outputs:
 
@@ -101,6 +107,25 @@ Run the benchmark without sampling, checkpoints, or TensorBoard:
 ```powershell
 .\.venv\Scripts\python.exe mini_diffusion\benchmark.py --config mini_diffusion\configs\cifar10.yaml --warmup-steps 20 --steps 200 --output reports\cifar10_baseline_benchmark.json
 ```
+
+## CIFAR-10 Optimized Run
+
+The baseline-semantics optimized config keeps batch size 128, learning rate, model, objective, schedule, EMA decay, and 200,000-step budget unchanged:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\train.py --config mini_diffusion\configs\cifar10_optimized.yaml
+```
+
+It enables persistent Windows workers, pinned non-blocking transfer, fused AdamW with fallback, foreach EMA, cuDNN autotuning, scalar logging every 50 steps, and DDIM-50 periodic previews. Five benchmark runs reached median `2272.92 images/s`, 27.15% above the historical baseline. cuDNN autotuning adds a one-time startup cost of roughly 30-35 seconds on this machine.
+
+Reproduce the final benchmark and regenerate its summary:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\benchmark.py --config mini_diffusion\configs\cifar10_optimized.yaml --experiment-id FINAL_OPTIMIZED --runs 5 --warmup-steps 30 --steps 200 --log reports\performance_experiments.jsonl
+.\.venv\Scripts\python.exe mini_diffusion\summarize_performance.py
+```
+
+Detailed results and accepted/rejected experiments are in `reports/cifar10_optimization_report.md`.
 
 ## Tiny ImageNet
 
@@ -139,4 +164,4 @@ The full Tiny ImageNet config uses about 48M trainable parameters and targets 64
 - Debug configs use `num_workers: 0` for Windows-safe DataLoader startup.
 - All executable scripts use `if __name__ == "__main__": main()`.
 - Checkpoints, datasets, logs, and samples are ignored by git.
-- The sampler CLI currently implements DDPM only; there are no inactive DDIM flags.
+- DDPM and deterministic DDIM sampling are both implemented; `--ddim-steps` is used only with `--sampler ddim`.

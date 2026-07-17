@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grid-filename", default="grid.png")
     parser.add_argument("--metadata-filename", default="metadata.json")
     parser.add_argument("--sampling-diagnostics", action="store_true")
+    parser.add_argument("--sampler", choices=("ddpm", "ddim"), default="ddpm")
+    parser.add_argument("--ddim-steps", type=int, default=50)
     return parser.parse_args()
 
 
@@ -71,6 +73,8 @@ def main() -> None:
                     guidance_scale=args.guidance_scale,
                     device=device,
                     generator=generator,
+                    sampler=args.sampler,
+                    ddim_steps=args.ddim_steps,
                 )
                 images.append(img.cpu())
     finally:
@@ -95,8 +99,8 @@ def main() -> None:
         "classes": classes[:num_images],
         "seeds": seeds[:num_images],
         "guidance_scale": args.guidance_scale,
-        "sampler": "ddpm",
-        "sampling_steps": diffusion.steps,
+        "sampler": args.sampler,
+        "sampling_steps": diffusion.steps if args.sampler == "ddpm" else args.ddim_steps,
         "sampling_dtype": "float32",
         "device": str(device),
         "grid": str(grid_path),

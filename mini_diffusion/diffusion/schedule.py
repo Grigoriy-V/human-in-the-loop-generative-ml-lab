@@ -125,13 +125,35 @@ class GaussianDiffusion(nn.Module):
         guidance_scale: float = 1.0,
         device: torch.device | str = "cpu",
         generator: torch.Generator | None = None,
+        sampler: str = "ddpm",
+        ddim_steps: int = 50,
     ) -> torch.Tensor:
         device = torch.device(device)
         x = torch.randn(shape, device=device, dtype=torch.float32, generator=generator)
         with torch.autocast(device_type=device.type, enabled=False):
-            for i in reversed(range(self.steps)):
-                t = torch.full((shape[0],), i, device=device, dtype=torch.long)
-                x = self.p_sample(model, x, t, labels, guidance_scale, generator)
+            if sampler == "ddpm":
+                for i in reversed(range(self.steps)):
+                    t = torch.full((shape[0],), i, device=device, dtype=torch.long)
+                    x = self.p_sample(model, x, t, labels, guidance_scale, generator)
+            elif sampler == "ddim":
+                if not 1 <= ddim_steps <= self.steps:
+                    raise ValueError(f"ddim_steps must be in [1, {self.steps}]")
+                timesteps = torch.linspace(
+                    self.steps - 1, 0, ddim_steps, device=device, dtype=torch.float64
+                ).round().long()
+                next_timesteps = torch.cat([timesteps[1:], timesteps.new_tensor([-1])])
+                for current, next_step in zip(timesteps.tolist(), next_timesteps.tolist()):
+                    t = torch.full((shape[0],), current, device=device, dtype=torch.long)
+                    eps = self._predict_eps(model, x, t, labels, guidance_scale)
+                    alpha = self.alphas_cumprod[current]
+                    pred_x0 = ((x - torch.sqrt(1.0 - alpha) * eps) / torch.sqrt(alpha)).clamp(-1, 1)
+                    if next_step < 0:
+                        x = pred_x0
+                    else:
+                        alpha_next = self.alphas_cumprod[next_step]
+                        x = torch.sqrt(alpha_next) * pred_x0 + torch.sqrt(1.0 - alpha_next) * eps
+            else:
+                raise ValueError(f"Unknown sampler: {sampler}")
         if not torch.isfinite(x).all():
-            raise FloatingPointError("DDPM sampling produced NaN or Inf values.")
+            raise FloatingPointError(f"{sampler.upper()} sampling produced NaN or Inf values.")
         return x.clamp(-1, 1)

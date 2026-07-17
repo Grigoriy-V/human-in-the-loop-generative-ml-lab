@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import random
@@ -110,6 +111,23 @@ def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
         return torch.optim.AdamW(model.parameters(), **kwargs)
 
 
+def prepare_train_model(
+    model: nn.Module, cfg: dict, device: torch.device
+) -> tuple[nn.Module, str]:
+    compile_mode = cfg.get("performance", {}).get("compile_mode", "none")
+    if compile_mode == "none":
+        return model, "eager"
+    if not hasattr(torch, "compile"):
+        print("warning: torch.compile unavailable; using eager model")
+        return model, "eager_fallback_unavailable"
+    if device.type == "cuda" and importlib.util.find_spec("triton") is None:
+        print("warning: torch.compile CUDA backend requires Triton; using eager model")
+        return model, "eager_fallback_missing_triton"
+    try:
+        return torch.compile(model, mode=compile_mode), f"compiled_{compile_mode}"
+    except Exception as exc:
+        print(f"warning: torch.compile setup failed; using eager model: {exc}")
+        return model, "eager_fallback_setup_error"
 def build_model(cfg: dict) -> UNet:
     model_cfg = cfg["model"]
     data_cfg = cfg["data"]
@@ -219,6 +237,8 @@ def write_samples(
     sampling_cfg = cfg.get("sampling", {})
     seed = int(sampling_cfg.get("preview_seed", cfg.get("seed", 123)))
     guidance_scale = float(sampling_cfg.get("guidance_scale", 1.5))
+    sampler = str(sampling_cfg.get("preview_sampler", "ddpm"))
+    ddim_steps = int(sampling_cfg.get("preview_steps", 50))
     generator = make_generator(device, seed)
     was_training = model.training
     try:
@@ -231,6 +251,8 @@ def write_samples(
                 guidance_scale=guidance_scale,
                 device=device,
                 generator=generator,
+                sampler=sampler,
+                ddim_steps=ddim_steps,
             )
     finally:
         model.train(was_training)
@@ -287,16 +309,8 @@ def train(cfg: dict, resume: str | None = None) -> Path:
     max_steps = cfg["train"]["max_steps"]
     accum = cfg["train"].get("grad_accum_steps", 1)
     latest_path = ckpt_dir / "latest.pt"
-    compile_mode = performance.get("compile_mode", "none")
-    train_model = model
-    if compile_mode != "none":
-        if not hasattr(torch, "compile"):
-            print("warning: torch.compile unavailable; using eager model")
-        else:
-            try:
-                train_model = torch.compile(model, mode=compile_mode)
-            except Exception as exc:
-                print(f"warning: torch.compile setup failed; using eager model: {exc}")
+    train_model, compile_status = prepare_train_model(model, cfg, device)
+    print(f"compile_status: {compile_status}")
 
     model.train()
     pbar = tqdm(total=max_steps, initial=global_step, desc=cfg["name"])

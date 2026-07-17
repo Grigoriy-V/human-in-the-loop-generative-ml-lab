@@ -32,6 +32,7 @@ from mini_diffusion.train import (
     load_config,
     move_images,
     move_labels,
+    prepare_train_model,
     set_seed,
     trainable_parameters,
 )
@@ -202,10 +203,7 @@ def main() -> None:
         decay=cfg["train"].get("ema_decay", 0.9999),
         foreach=bool(performance.get("ema_foreach", False)),
     )
-    train_model = model
-    compile_mode = performance.get("compile_mode", "none")
-    if compile_mode != "none":
-        train_model = torch.compile(model, mode=compile_mode)
+    train_model, compile_status = prepare_train_model(model, cfg, device)
     loader = infinite_loader(build_loader(cfg))
     accum = int(cfg["train"].get("grad_accum_steps", 1))
     scalar_sync_every = int(performance.get("scalar_log_every", 1))
@@ -300,6 +298,7 @@ def main() -> None:
         "cuda": torch.version.cuda,
         "dtype": str(dtype),
         "autocast": use_autocast,
+        "compile_status": compile_status,
         "batch_size": batch_size,
         "effective_batch_size": effective_batch_size,
         "trainable_parameters": trainable_parameters(model),
@@ -313,7 +312,7 @@ def main() -> None:
         "gpu_utilization_mean": statistics.fmean(sampler.samples) if sampler.samples else None,
         "gpu_utilization_median": statistics.median(sampler.samples) if sampler.samples else None,
         "gpu_memory_used_mb_mean": statistics.fmean(sampler.memory_mb) if sampler.memory_mb else None,
-        "result": "measured",
+        "result": "unsupported" if compile_status.startswith("eager_fallback") else "measured",
         "keep_reject": "pending",
         "notes": "",
     }
