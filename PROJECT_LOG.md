@@ -129,9 +129,57 @@ The accepted configuration in `mini_diffusion/configs/cifar10_optimized.yaml` im
 
 Tag the optimized implementation as `cifar10-ddpm-optimized`. Use DDIM-50 for periodic previews and DDPM for reference final evaluation. Keep all raw benchmark data in `reports/` and generated profiler/sample output outside Git.
 
+## 2026-07-17: Tiny ImageNet 64x64 Readiness
+
+### Goal
+
+Prepare the 64x64 training path and determine whether physical batch 128 is a good first-run setting before the dataset is available.
+
+### Outcome
+
+The real loader reports the missing archive immediately and now has a standalone integrity validator. A temporary original-layout dataset verified train/validation decoding without adding data to Git. Synthetic CUDA probes confirmed that physical batch 128 fits on the RTX 4090, but `64 x accumulation 2` was slightly faster and used substantially less memory at the same effective batch. SDPA was also slower than manual attention for this model.
+
+Detailed results: [`reports/tiny_imagenet_readiness.md`](reports/tiny_imagenet_readiness.md)
+
+### Decision
+
+Use physical batch 64 with two accumulation steps for the initial config. Keep manual attention and retest batch size and Windows worker count with real JPEG files after the dataset passes validation. Do not start full training before real-data overfit, debug checkpoint/resume, and sample generation pass.
+
+## 2026-07-17: Tiny ImageNet Real-Data Gate
+
+### Goal
+
+Confirm that the extracted Tiny ImageNet archive, configured loader, and 64x64 training path are ready for a full run.
+
+### Outcome
+
+The extracted archive passed the integrity gate. Real-loader benchmarks selected `batch_size: 64` with `grad_accum_steps: 2`: `128 x 2` changed the effective batch to 256, consumed about twice the VRAM, and did not improve throughput. The real debug train, checkpoint, resume, periodic preview, and EMA CLI PNG path all passed on CUDA.
+
+Detailed results: [`reports/tiny_imagenet_readiness.md`](reports/tiny_imagenet_readiness.md)
+
+### Decision
+
+Start the first full Tiny ImageNet run with `mini_diffusion/configs/tiny_imagenet.yaml`. Keep generated checkpoints, logs, and preview grids outside Git.
+
+## 2026-07-17: Tiny ImageNet Partial 150k Snapshot
+
+### Goal
+
+Close a deliberately stopped Tiny ImageNet run with a verified checkpoint, reproducible EMA sample, and compact training metadata.
+
+### Outcome
+
+The latest checkpoint was saved at step 150,000 of 400,000, or 37.5% complete. It restored model, EMA, optimizer, and RNG state successfully with finite tensors. A fixed EMA DDIM-50 grid was generated and added as a compact documentation asset. The logged loss and recent training speed were frozen in `reports/`.
+
+Detailed snapshot: [`reports/tiny_imagenet_partial.md`](reports/tiny_imagenet_partial.md)
+
+### Decision
+
+Mark this as a partial-training snapshot, not a completed model. Keep the checkpoint and large outputs ignored by Git. The code and compact report can be tagged as the reproducible 150k state.
+
 ## Current State And Next Milestone
 
 - CIFAR-10 debug and baseline pipelines are complete.
 - The original full Version 0 training is complete; the optimized configuration has only benchmark, smoke, resume, and sampling validation so far.
-- Tiny ImageNet support exists, but `datasets/tiny-imagenet-200/` has not been provided and no Tiny ImageNet training or loader benchmark has been run.
-- The next milestone is to prepare Tiny ImageNet, repeat the debug correctness gate at 64x64, profile data loading and attention at that resolution, and only then select full-run settings.
+- Tiny ImageNet has a verified partial snapshot at 150,000 of 400,000 steps. The extracted archive, real debug pipeline, and real loader benchmark passed; `batch_size: 64` with `grad_accum_steps: 2` remains selected.
+- The next milestone is either resuming this exact experiment from its saved checkpoint or beginning a separately scoped training run. Both should retain periodic DDIM-50 previews and checkpoints outside Git.

@@ -4,7 +4,25 @@ from pathlib import Path
 
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
+from torchvision import datasets, transforms
+
+
+TINY_IMAGENET_DOWNLOAD_URL = (
+    "https://zenodo.org/records/10720917/files/tiny-imagenet-200.zip?download=1"
+)
+
+
+def _build_transform(resolution: int, split: str):
+    return transforms.Compose(
+        [
+            transforms.Resize((resolution, resolution)),
+            transforms.RandomHorizontalFlip()
+            if split == "train"
+            else transforms.Lambda(lambda x: x),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
 
 
 class TinyImageNet(Dataset):
@@ -15,7 +33,8 @@ class TinyImageNet(Dataset):
         if not self.root.exists():
             raise FileNotFoundError(
                 f"Tiny ImageNet not found at {self.root}. Download it manually into "
-                "datasets/tiny-imagenet-200/ as described in README.md."
+                "datasets/tiny-imagenet-200/ as described in README.md. "
+                f"Download: {TINY_IMAGENET_DOWNLOAD_URL}"
             )
         self.wnids = self._read_lines("wnids.txt")
         self.wnid_to_idx = {wnid: i for i, wnid in enumerate(self.wnids)}
@@ -23,14 +42,7 @@ class TinyImageNet(Dataset):
         self.samples = self._collect_samples()
         if not self.samples:
             raise RuntimeError(f"No Tiny ImageNet samples found for split={split} at {self.root}")
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((resolution, resolution)),
-                transforms.RandomHorizontalFlip() if split == "train" else transforms.Lambda(lambda x: x),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
-        )
+        self.transform = _build_transform(resolution, split)
 
     def _read_lines(self, name: str) -> list[str]:
         path = self.root / name
@@ -64,6 +76,10 @@ class TinyImageNet(Dataset):
             for line in ann.read_text(encoding="utf-8").splitlines():
                 cols = line.split("\t")
                 if len(cols) >= 2:
+                    if cols[1] not in self.wnid_to_idx:
+                        raise RuntimeError(
+                            f"Unknown validation class {cols[1]!r} in {ann}"
+                        )
                     labels[cols[0]] = self.wnid_to_idx[cols[1]]
             return [
                 (self.root / "val" / "images" / name, idx)
@@ -85,5 +101,19 @@ class TinyImageNet(Dataset):
         return self.transform(image), label
 
 
-def build_tiny_imagenet(root: str, split: str = "train", resolution: int = 64):
+def build_tiny_imagenet(
+    root: str,
+    split: str = "train",
+    resolution: int = 64,
+    fake_data: bool = False,
+    fake_size: int = 512,
+    num_classes: int = 200,
+):
+    if fake_data:
+        return datasets.FakeData(
+            size=fake_size,
+            image_size=(3, resolution, resolution),
+            num_classes=num_classes,
+            transform=_build_transform(resolution, split),
+        )
     return TinyImageNet(root=root, split=split, resolution=resolution)

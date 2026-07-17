@@ -129,7 +129,17 @@ Detailed results and accepted/rejected experiments are in `reports/cifar10_optim
 
 ## Tiny ImageNet
 
-Download Tiny ImageNet manually and unpack it as:
+The dataset is not downloaded automatically. Download the 248.1 MB archive from
+[Zenodo](https://zenodo.org/records/10720917/files/tiny-imagenet-200.zip?download=1),
+then verify and unpack it from the repository root:
+
+```powershell
+Invoke-WebRequest -Uri "https://zenodo.org/records/10720917/files/tiny-imagenet-200.zip?download=1" -OutFile datasets\tiny-imagenet-200.zip
+Get-FileHash datasets\tiny-imagenet-200.zip -Algorithm MD5
+Expand-Archive -LiteralPath datasets\tiny-imagenet-200.zip -DestinationPath datasets
+```
+
+The expected MD5 is `90528d7ca1a48142e341f4ef8d21d0de`. The extracted root must be:
 
 ```text
 datasets/tiny-imagenet-200/
@@ -145,6 +155,12 @@ wnids.txt
 words.txt
 ```
 
+Validate image counts, class balance, annotations, decoding, tensor shape, and normalization before training:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\validate_tiny_imagenet.py
+```
+
 Tiny ImageNet debug:
 
 ```powershell
@@ -158,6 +174,15 @@ Tiny ImageNet full run:
 ```
 
 The full Tiny ImageNet config uses about 48M trainable parameters and targets 64x64 images, 200 classes, BF16, EMA, gradient accumulation, and attention at 16x16 and 8x8.
+
+On the RTX 4090, physical batch 128 fits in VRAM but was slightly slower in the synthetic compute probe and used roughly twice the peak memory of batch 64 with two accumulation steps. The first full-run config therefore uses `batch_size: 64` and `grad_accum_steps: 2`, preserving effective batch 128 with more memory headroom. Re-benchmark the real JPEG loader after extraction before changing workers or physical batch size. Detailed readiness results are in `reports/tiny_imagenet_readiness.md`.
+
+Synthetic preflight is available without the archive. It verifies the full model/optimizer/EMA training path but does not validate JPEG decoding or loader throughput:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\benchmark.py --config mini_diffusion\configs\tiny_imagenet.yaml --experiment-id TINY_SYNTHETIC_64X2 --warmup-steps 2 --steps 6 --set data.fake_data=true --set data.fake_size=512 --log reports\tiny_imagenet_experiments.jsonl
+.\.venv\Scripts\python.exe mini_diffusion\benchmark.py --config mini_diffusion\configs\tiny_imagenet.yaml --experiment-id TINY_SYNTHETIC_128X1 --warmup-steps 2 --steps 6 --set data.fake_data=true --set data.fake_size=512 --set data.batch_size=128 --set train.grad_accum_steps=1 --log reports\tiny_imagenet_experiments.jsonl
+```
 
 ## Notes
 

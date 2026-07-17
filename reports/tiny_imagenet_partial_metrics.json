@@ -1,0 +1,20 @@
+{
+  "checkpoint": "outputs/tiny_imagenet/checkpoints/latest.pt",
+  "checkpoint_global_step": 150000,
+  "configured_max_steps": 400000,
+  "completion_fraction": 0.375,
+  "completion_percent": 37.5,
+  "checkpoint_sha256": "2880B1066D337A4D1F68F6850AE7A8E20D76CE94B6EBAAE44F601DDE39A39211",
+  "checkpoint_source_commit": "51bd5d54980a1b190a01a4f84a688e6d310d1f9b",
+  "checkpoint_loss": 0.1350291222333908,
+  "recent_window_steps": [140000, 150000],
+  "recent_median_steps_per_second": 3.7236341578309644,
+  "recent_median_images_per_second": 476.62517220236344,
+  "recent_mean_steps_per_second": 3.697192034585523,
+  "recent_mean_images_per_second": 473.24058042694696,
+  "effective_batch_size": 128,
+  "cuda_peak_gb_at_checkpoint": 17.775209426879883,
+  "tensorboard_last_logged_step": 150100,
+  "tensorboard_last_logged_loss": 0.09969425201416016,
+  "note": "The last 100 TensorBoard steps were not included in the saved checkpoint."
+}

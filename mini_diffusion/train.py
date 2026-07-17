@@ -51,7 +51,14 @@ def build_dataset(cfg: dict):
             fake_size=data.get("fake_size", 128),
         )
     if data["dataset"] == "tiny_imagenet":
-        return build_tiny_imagenet(data["root"], split="train", resolution=data["resolution"])
+        return build_tiny_imagenet(
+            data["root"],
+            split="train",
+            resolution=data["resolution"],
+            fake_data=data.get("fake_data", False),
+            fake_size=data.get("fake_size", 512),
+            num_classes=data.get("num_classes", 200),
+        )
     raise ValueError(f"Unknown dataset: {data['dataset']}")
 
 
