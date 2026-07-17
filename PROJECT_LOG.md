@@ -259,3 +259,19 @@ Detailed evidence: [`reports/imagenette_sit_s_128_baseline_100k.md`](reports/ima
 ### Decision
 
 Use EMA Heun-50 with CFG 1.5 and the documented ten-class, five-seed protocol as the canonical pre-REPA baseline. Do not treat the 100k checkpoint as a completed long training run.
+
+## 2026-07-17: Imagenette SiT-S/2 + REPA Setup
+
+### Goal
+
+Prepare a separate from-scratch SiT-S/2 representation-alignment experiment while preserving the frozen 100k baseline unchanged.
+
+### Outcome
+
+Added a frozen DINOv2-B/14 feature-cache CLI, memory-mapped FP16 train features matched by relative path and label, block-8 SiT alignment, a training-only projector, REPA checkpoint/resume metadata, and tests. The full 9469-sample cache, debug train/resume/sampling path, deterministic preview, and batch-256 benchmark completed on CUDA.
+
+Detailed evidence: [`reports/imagenette_sit_s_128_repa_setup.md`](reports/imagenette_sit_s_128_repa_setup.md)
+
+### Decision
+
+Retain batch 256 with workers 4: cached REPA is stable and needs about 0.59 GB more allocated VRAM than baseline. Keep the new experiment isolated at `outputs/imagenette_sit_s_128_repa/`; full 0-to-100k REPA training is intentionally not started by setup.

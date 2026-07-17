@@ -1,0 +1,61 @@
+name: imagenette_sit_s_128_repa_debug
+seed: 123
+output_dir: outputs/imagenette_sit_s_128_repa_debug
+data:
+  dataset: imagenette-160
+  root: datasets/imagenette
+  cache_dir: outputs/imagenette_sit_s_128/latents
+  cache_limit: 64
+  resolution: 128
+  latent_resolution: 16
+  num_classes: 10
+  cache_seed: 123
+  prepare_batch_size: 16
+  batch_size: 8
+  num_workers: 0
+  pin_memory: true
+  non_blocking: true
+  persistent_workers: false
+  prefetch_factor: 2
+vae:
+  model_id: stabilityai/sd-vae-ft-mse
+  revision: null
+model:
+  patch_size: 2
+  hidden_size: 384
+  depth: 12
+  num_heads: 6
+  mlp_ratio: 4.0
+  cond_drop_prob: 0.1
+repa:
+  enabled: true
+  teacher: dinov2_vitb14
+  teacher_input_resolution: 224
+  teacher_feature_dim: 768
+  alignment_depth: 8
+  projector_hidden_dim: 2048
+  coefficient: 0.5
+  feature_cache_dir: outputs/imagenette_sit_s_128_repa_debug/dino_features
+train:
+  init_from: null
+  max_steps: 10
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  grad_accum_steps: 1
+  grad_clip: 1.0
+  ema_decay: 0.9999
+  dtype: bf16
+  log_every: 1
+  save_every: 5
+  sample_every: 1000
+performance:
+  fused_adamw: true
+  ema_foreach: true
+  cudnn_benchmark: true
+sampling:
+  preview_sampler: heun
+  preview_steps: 25
+  preview_seed: 123
+  preview_count: 8
+  guidance_scale: 1.5
+  preview_decode: false

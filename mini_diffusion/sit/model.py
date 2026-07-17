@@ -103,7 +103,14 @@ class SiT(nn.Module):
     def null_class(self) -> int:
         return self.num_classes
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, labels: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        labels: torch.Tensor | None = None,
+        *,
+        return_hidden_after: int | None = None,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         if x.shape[1:] != (self.in_channels, self.input_size, self.input_size):
             raise ValueError(f"Expected [B,{self.in_channels},{self.input_size},{self.input_size}], got {tuple(x.shape)}")
         if labels is None:
@@ -116,9 +123,15 @@ class SiT(nn.Module):
             raise ValueError("labels must be class ids or the null class id")
         tokens = self.x_embedder(x) + self.pos_embed.to(dtype=x.dtype)
         conditioning = self.t_embedder(t) + self.y_embedder(labels)
-        for block in self.blocks:
+        hidden = None
+        for block_index, block in enumerate(self.blocks, start=1):
             tokens = block(tokens, conditioning)
-        return self.unpatchify(self.final_layer(tokens, conditioning))
+            if return_hidden_after == block_index:
+                hidden = tokens
+        if return_hidden_after is not None and hidden is None:
+            raise ValueError(f"return_hidden_after must be in [1, {len(self.blocks)}]")
+        velocity = self.unpatchify(self.final_layer(tokens, conditioning))
+        return (velocity, hidden) if return_hidden_after is not None else velocity
 
     def unpatchify(self, x: torch.Tensor) -> torch.Tensor:
         b, tokens, _ = x.shape
