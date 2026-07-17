@@ -1,0 +1,29 @@
+[
+  {
+    "batch": 64,
+    "effective_batch": 64,
+    "seconds_per_step": 0.03375931999180466,
+    "images_per_second": 1895.7727826134087,
+    "peak_allocated_gb": 1.398974895477295,
+    "peak_reserved_gb": 1.4765625,
+    "oom": false
+  },
+  {
+    "batch": 128,
+    "effective_batch": 128,
+    "seconds_per_step": 0.0321767000015825,
+    "images_per_second": 3978.033794444575,
+    "peak_allocated_gb": 2.3282971382141113,
+    "peak_reserved_gb": 2.5,
+    "oom": false
+  },
+  {
+    "batch": 256,
+    "effective_batch": 256,
+    "seconds_per_step": 0.050069659994915125,
+    "images_per_second": 5112.876740644901,
+    "peak_allocated_gb": 4.124621868133545,
+    "peak_reserved_gb": 4.314453125,
+    "oom": false
+  }
+]

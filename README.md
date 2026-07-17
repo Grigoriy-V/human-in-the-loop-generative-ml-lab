@@ -190,3 +190,37 @@ Synthetic preflight is available without the archive. It verifies the full model
 - All executable scripts use `if __name__ == "__main__": main()`.
 - Checkpoints, datasets, logs, and samples are ignored by git.
 - DDPM and deterministic DDIM sampling are both implemented; `--ddim-steps` is used only with `--sampler ddim`.
+
+## Imagenette Latent SiT-S/2
+
+The latent baseline is isolated from the DDPM/U-Net path. It uses Imagenette-160 at 128x128, the frozen `stabilityai/sd-vae-ft-mse` VAE, a deterministic `[4, 16, 16]` float16 latent cache, and a 32,527,888-parameter class-conditioned SiT-S/2 velocity model. The VAE scaling factor is read from its configuration and recorded in every cache; it is not loaded by `train_sit.py`.
+
+Prepare Imagenette (the CLI downloads the official fast.ai archive if needed), write a small debug cache, and create the validation reconstruction grid:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install diffusers huggingface_hub safetensors
+.\.venv\Scripts\python.exe mini_diffusion\prepare_latents.py --config mini_diffusion\configs\imagenette_sit_s_128_debug.yaml --limit 32 --download-dataset
+```
+
+Run the CUDA/BF16 debug chain, then resume it:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_debug.yaml
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_debug.yaml --resume outputs\imagenette_sit_s_128_debug\checkpoints\latest.pt --max-steps 20
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_debug.yaml --overfit-smoke --overfit-updates 40
+```
+
+Generate decoded samples. `euler` and `heun` are both live ODE samplers; `heun` is the default.
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\sample_sit.py --checkpoint outputs\imagenette_sit_s_128_debug\checkpoints\latest.pt --weights raw --classes 0 1 2 3 --seeds 10 20 30 40 --sampler euler --steps 5 --output outputs\imagenette_sit_s_128_debug\samples_raw
+.\.venv\Scripts\python.exe mini_diffusion\sample_sit.py --checkpoint outputs\imagenette_sit_s_128_debug\checkpoints\latest.pt --weights ema --classes 0 1 2 3 --seeds 10 20 30 40 --sampler heun --steps 5 --output outputs\imagenette_sit_s_128_debug\samples_ema
+```
+
+Benchmark the full SiT configuration before a future full training run:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\benchmark_sit.py --config mini_diffusion\configs\imagenette_sit_s_128.yaml --output reports\imagenette_sit_benchmark.json
+```
+
+The tested candidates selected physical batch `256` (no accumulation) on this RTX 4090. `sampling.preview_decode: true` writes an EMA-decoded PNG alongside each periodic latent preview; the frozen VAE is loaded only during this preview step and is never optimized. Do not interpret the debug training as a trained generative model: full Imagenette training has intentionally not been started.

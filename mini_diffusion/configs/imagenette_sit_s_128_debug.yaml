@@ -1,0 +1,45 @@
+name: imagenette_sit_s_128_debug
+seed: 123
+output_dir: outputs/imagenette_sit_s_128_debug
+data:
+  dataset: imagenette-160
+  root: datasets/imagenette
+  cache_dir: outputs/imagenette_sit_s_128_debug/latents
+  resolution: 128
+  latent_resolution: 16
+  num_classes: 10
+  cache_seed: 123
+  prepare_batch_size: 8
+  batch_size: 8
+  num_workers: 0
+vae:
+  model_id: stabilityai/sd-vae-ft-mse
+  revision: null
+model:
+  patch_size: 2
+  hidden_size: 384
+  depth: 12
+  num_heads: 6
+  mlp_ratio: 4.0
+  cond_drop_prob: 0.1
+train:
+  max_steps: 10
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  grad_accum_steps: 1
+  grad_clip: 1.0
+  ema_decay: 0.999
+  dtype: bf16
+  log_every: 1
+  save_every: 5
+  sample_every: 5
+performance:
+  fused_adamw: true
+  ema_foreach: true
+  cudnn_benchmark: false
+sampling:
+  preview_sampler: heun
+  preview_steps: 5
+  preview_seed: 123
+  preview_count: 4
+  guidance_scale: 1.5

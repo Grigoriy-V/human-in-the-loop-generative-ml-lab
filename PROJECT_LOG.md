@@ -183,3 +183,79 @@ Mark this as a partial-training snapshot, not a completed model. Keep the checkp
 - The original full Version 0 training is complete; the optimized configuration has only benchmark, smoke, resume, and sampling validation so far.
 - Tiny ImageNet has a verified partial snapshot at 150,000 of 400,000 steps. The extracted archive, real debug pipeline, and real loader benchmark passed; `batch_size: 64` with `grad_accum_steps: 2` remains selected.
 - The next milestone is either resuming this exact experiment from its saved checkpoint or beginning a separately scoped training run. Both should retain periodic DDIM-50 previews and checkpoints outside Git.
+
+## 2026-07-17: Imagenette Latent SiT-S/2 Debug Gate
+
+### Goal
+
+Establish a separate Imagenette-160 latent generative baseline: frozen Stable Diffusion VAE, deterministic latent cache, SiT-S/2 velocity training, and ODE decoding checks.
+
+### Outcome
+
+The CUDA/BF16 debug path passed from real data through VAE reconstruction, 32-image train/val caches, SiT checkpoint/resume, CUDA one-batch overfit, raw Euler and EMA Heun decoded PNGs. Repeated fixed EMA sampling was byte-identical. A short batch probe selected 256 as the full-config batch size; no full Imagenette training was started.
+
+Detailed evidence: [`reports/imagenette_sit_readiness.md`](reports/imagenette_sit_readiness.md)
+
+### Decision
+
+Keep `mini_diffusion/sit/` independent of the existing DDPM/U-Net modules. Preserve cache-only SiT training and VAE decoding as a separate CLI step. Keep caches, checkpoints, previews, and large outputs ignored by Git.
+
+## 2026-07-17: Imagenette SiT-S/2 Performance Check
+
+### Goal
+
+Confirm the initial full-run configuration, CUDA attention path, and loader/optimizer settings without starting long training or changing the primary cache.
+
+### Outcome
+
+The direct PyTorch SDPA path selected fused memory-efficient attention. This wheel cannot use Flash Attention despite an RTX 4090 and BF16 head dimension 64, because it was not built with that kernel. Batch 256 with four workers was the fastest stable probe; batch 512 was slower and used substantially more VRAM. The full cache was absent and deliberately not created, so the isolated probes reused the existing debug cache without modifying it.
+
+Detailed evidence: [`reports/imagenette_sit_s_128_performance_check.md`](reports/imagenette_sit_s_128_performance_check.md)
+
+### Decision
+
+Set the first training milestone to 100,000 steps, log every 100 steps, and run fixed eight-image Heun-25 previews every 10,000 steps. Retain batch 256, workers 4, fused AdamW, foreach EMA, and the Heun-50 explicit CLI evaluation path. Full training remains unstarted.
+
+## 2026-07-17: Imagenette Full Latent Cache
+
+### Goal
+
+Prepare the full deterministic Imagenette-160 latent cache required by the approved 100k-step SiT training milestone.
+
+### Outcome
+
+The initial Windows four-worker run exposed a non-picklable local RGB transform. The transform was moved to module scope, after which cache preparation completed successfully: `9469` train and `3925` validation FP16 `[4,16,16]` latents, all finite and with all ten classes represented. The VAE reconstruction grid was also regenerated under the full output directory.
+
+### Decision
+
+Keep the Windows-safe module-level transform. Cache, grid, and VAE artifacts remain ignored; full training has not been started.
+
+## 2026-07-17: Imagenette Decoded Periodic Previews
+
+### Goal
+
+Make periodic SiT previews directly inspectable as RGB PNGs during training rather than requiring a manual latent decode after every sample interval.
+
+### Outcome
+
+`train_sit.py` now writes the existing latent preview and an EMA-decoded PNG when `sampling.preview_decode: true`. The VAE is loaded only for the preview, stays frozen, is excluded from the optimizer, and is released after decoding. An EMA Heun-25 grid was generated from the step-10,000 checkpoint to validate the path.
+
+### Decision
+
+Keep decoded periodic previews enabled in the full Imagenette config. The next resumed training preview will occur at step 20,000; full training remains a user-controlled run.
+
+## 2026-07-17: Imagenette SiT-S/2 Baseline At 100k
+
+### Goal
+
+Freeze the completed 100,000-step Imagenette SiT-S/2 milestone with an immutable checkpoint copy and a fixed, repeatable EMA evaluation before the future REPA stage.
+
+### Outcome
+
+The finite step-100k model and EMA were copied from `latest.pt` to an SHA-identical baseline checkpoint. Standard Heun-50 evaluation produced 50 fixed samples for each CFG 1.0, 1.5, and 2.0. All images were valid 128x128 RGB PNGs without black/white failures. The repeated CFG 1.5 grid was byte-identical.
+
+Detailed evidence: [`reports/imagenette_sit_s_128_baseline_100k.md`](reports/imagenette_sit_s_128_baseline_100k.md)
+
+### Decision
+
+Use EMA Heun-50 with CFG 1.5 and the documented ten-class, five-seed protocol as the canonical pre-REPA baseline. Do not treat the 100k checkpoint as a completed long training run.
