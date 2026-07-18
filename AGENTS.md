@@ -17,7 +17,7 @@
 ## Agent Orchestration And Audit
 
 - Project agent limits are defined in `.codex/config.toml`; executable profiles are in `.codex/agents/`; detailed lifecycle and failure rules are in `docs/agent_orchestration.md`.
-- Use `luna_clerk` at `minimal` only for deterministic clerical work, `terra_worker` at `low` for the default bounded implementation/validation work, and `sol_specialist` at `high` only with explicit supervisor approval for complex or high-risk work. If Luna is unavailable in the current session, fall back to Terra at `low`.
+- Use `luna_clerk` at `none` only for deterministic clerical work, `terra_worker` at `low` for the default bounded implementation/validation work, and `sol_specialist` at `high` only with explicit supervisor approval for complex or high-risk work. If Luna is unavailable in the current session, fall back to Terra at `low`.
 - A worker must not change its model or reasoning level, delegate, or broaden scope without supervisor approval. Use one write-heavy worker for overlapping mutable scope; long training and evaluation remain human-gated.
 - Every worker task appends a `started` event and one terminal event to `reports/agent_execution_ledger.jsonl`, validated by `reports/agent_execution_ledger.schema.json`. Worker `started`, `completed`, `failed`, and `interrupted` events must set `supervisor_decision` to `null`; only the supervisor appends a later `reviewed` event with an explicit decision. Link real ML operations to their `reports/experiment_ledger.jsonl` event IDs; do not invent token or credit data.
 

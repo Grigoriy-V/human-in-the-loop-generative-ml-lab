@@ -12,13 +12,13 @@ For every worker task: (1) supervisor dispatches scope, permitted files/artifact
 
 | Profile | Model | Default reasoning | Allowed work |
 | --- | --- | --- | --- |
-| `luna_clerk` | `gpt-5.6-luna` | `minimal` | Deterministic extraction, status collection, formatting, reporting, and ledger work. No ML decisions or ML operations. |
+| `luna_clerk` | `gpt-5.6-luna` | `none` | Deterministic extraction, status collection, formatting, reporting, and ledger work. No ML decisions or ML operations. |
 | `terra_worker` | `gpt-5.6-terra` | `low` | Narrow implementation, targeted tests, standard diagnosis, and approved ML task execution. |
 | `sol_specialist` | `gpt-5.6-sol` | `high` | Explicitly approved complex or high-risk work. |
 
 Use the least capable safe profile. A worker may not escalate model/reasoning, change profile, or delegate without supervisor approval. Escalate Luna to Terra when judgment or code changes are required; escalate Terra to Sol only for material complexity, ambiguity, or risk.
 
-The already-open session may not expose Luna even when its project profile exists. Fall back to `terra_worker` at `low`; a new session or Codex restart may be needed to load project custom agents.
+The already-open built-in `luna_clerk` launcher can remain pinned to `minimal` independently of the project profile and fail before execution because Luna does not support that level. The project profile uses `none`; a new session or custom-profile reload may be needed before it takes effect. Fall back to `terra_worker` at `low` until then.
 
 ## Controls and failures
 

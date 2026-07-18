@@ -526,3 +526,13 @@ Adopt the new agent ledger for worker dispatches and terminal outcomes. Keep the
 ### Audit correction
 
 Worker terminal records now leave `supervisor_decision` null. Supervisor acceptance is represented by a later `reviewed` event; the original bootstrap completion's premature `accept` is preserved append-only and corrected in the agent ledger.
+
+## 2026-07-18: Luna Reasoning Profile Correction
+
+### Outcome
+
+The built-in Luna launcher rejected `minimal` before worker execution because the current Luna runtime supports `none`, `low`, `medium`, `high`, and `xhigh`. The project `luna_clerk` profile and routing documentation now use `none`. No ML operation occurred and no experiment ledger record was added.
+
+### Decision
+
+Use a newly loaded custom Luna profile with `none`; until it is available, route deterministic clerical tasks to Terra at `low`.
