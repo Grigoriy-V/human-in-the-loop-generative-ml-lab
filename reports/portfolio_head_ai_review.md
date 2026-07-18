@@ -1,7 +1,7 @@
 # Head of AI portfolio review
 
-**Review type:** independent, static, final-style review of the portfolio package  
-**Review snapshot:** 2026-07-18; documentation and tracked evidence only  
+**Review type:** independent, static, final-style review of the portfolio package
+**Review snapshot:** 2026-07-18; documentation and tracked evidence only
 **Reviewer lens:** Head of AI assessing an Applied AI / AI Engineer candidate project
 
 ## Executive verdict: conditionally ready
