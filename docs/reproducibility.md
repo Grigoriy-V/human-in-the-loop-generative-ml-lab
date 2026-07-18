@@ -26,4 +26,4 @@ The current AFHQ Cats decision is based on a quick-200 protocol, not a full-1000
 
 ## Before public release
 
-The readiness audit identifies remaining release blockers: choose a code license, add consolidated third-party attribution/use policy, provide a genuinely portable pinned inexpensive verification path, and run a final secret/link/render review. [Audit](../reports/public_repo_readiness_audit.md)
+Third-party attribution and use boundaries are now documented in [THIRD_PARTY.md](../THIRD_PARTY.md), and the standard-library verifier provides a portable packaging check. The project code license is still pending; a final secret/link/render review is also required before public release. The earlier [readiness audit](../reports/public_repo_readiness_audit.md) is retained as the pre-remediation snapshot.

@@ -1,6 +1,6 @@
 # Human-in-the-Loop Generative ML Lab
 
-An evidence-led learning project that grew from a PyTorch DDPM into a latent diffusion/flow workflow with controlled agent assistance. The point is not to claim a production platform: it is to show how model work, evaluation discipline, and human-supervised orchestration can reinforce one another.
+An evidence-led learning project that grew from a PyTorch DDPM into a latent diffusion/flow workflow with controlled agent assistance. It shows how model work, evaluation discipline, and human-supervised orchestration can reinforce one another.
 
 The human defined the learning goals, approved scope and model decisions, and manually gated long training/evaluation. Agents performed bounded implementation, investigation, validation, and documentation tasks under an append-only audit trail.
 
@@ -12,8 +12,6 @@ Two connected pillars make up the case study.
 
 1. **Generative ML:** class-conditioned DDPM/U-Net work progressed to latent SiT flow models, a fixed-protocol evaluator, representation-alignment (REPA) experiments, and a bounded AFHQ Cats model-selection decision.
 2. **Human-supervised orchestration:** a supervisor defines scope and makes final decisions; workers execute narrowly bounded tasks; long GPU runs remain manual; separate append-only ledgers record ML operations and agent execution.
-
-The orchestration is there to make the research process more inspectable, not to replace technical judgment or autonomously train models.
 
 ## Selected result: AFHQ Cats
 
@@ -46,6 +44,7 @@ Early-stop improves FID by 4.71% and KID by 17.53% versus the baseline in this p
 - [Agent orchestration reference](docs/agent_orchestration.md) — roles, controls, and audit lifecycle.
 - [Reproducibility guide](docs/reproducibility.md) — supported evidence, a cheap inspection path, and explicit limits.
 - [Operations guide](docs/operations_guide.md) — historical Windows-oriented commands; it is not a portability promise.
+- [Third-party materials](THIRD_PARTY.md) — dataset/model attribution and use boundaries.
 
 ## Evidence map
 
@@ -58,8 +57,8 @@ Early-stop improves FID by 4.71% and KID by 17.53% versus the baseline in this p
 
 ## Scope and availability
 
-This repository tracks code, compact reports, configurations, hashes, and selected small visuals. Datasets, checkpoints, latent/feature caches, TensorBoard logs, and full evaluation outputs are intentionally ignored; reports point to their local paths and hashes where relevant. The observed environment is Windows with Python 3.12 and an RTX 4090, but dependencies are not fully pinned and no cross-platform or cloud claim is made.
+This repository tracks code, compact reports, configurations, hashes, and selected visuals. Datasets, checkpoints, caches, logs, and full evaluation outputs are intentionally ignored. The observed environment is Windows with Python 3.12 and an RTX 4090; dependencies are not fully pinned and no cross-platform or cloud claim is made.
 
-Training and evaluation can be expensive and are human-gated. Start with the [reproducibility guide](docs/reproducibility.md), not a long-run command. A code license and consolidated third-party attribution policy are still pending before a public release.
+Training and evaluation can be expensive and are human-gated. Start with the [reproducibility guide](docs/reproducibility.md), not a long-run command. Third-party attribution is documented, while the project code license is still pending before a public release.
 
 For a no-download, no-GPU check of public packaging and evidence integrity, run `python tools/verify_public_repo.py` with Python 3.11+; it does not reproduce ML metrics. Details and limits are in the [reproducibility guide](docs/reproducibility.md).
