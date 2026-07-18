@@ -435,3 +435,7 @@ Added `reports/experiment_ledger.jsonl`, its JSON Schema, and logging documentat
 ### Decision
 
 Use the ledger as the canonical structured input for a future ML Training Playbook, reusable skills, and agent orchestration pipeline. Corrections must be represented by new ledger events rather than editing historical records.
+
+### Addendum
+
+The completed AFHQ Cats 10k raw evaluation is now recorded in `reports/experiment_ledger.jsonl` as `afhq-cats-10k-raw-evaluation-20260718`. The decision remains to continue the unchanged recipe to 20k; this ledger update does not launch training.
