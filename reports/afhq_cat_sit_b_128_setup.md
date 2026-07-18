@@ -14,6 +14,29 @@ The official original AFHQ archive was downloaded from the StarGAN v2 source and
 - The selected training setting remains physical batch `128`, `grad_accum_steps: 2`, effective batch `256`. Batch 256 is stable but slower and costs materially more VRAM.
 - Full debug chain completed on CUDA BF16: one-batch overfit loss fell from `1.481043` to `0.555858` in 40 updates; train wrote a step-2 checkpoint; resume restored it and reached step 3. Raw and EMA Heun-25 decoded PNG grids were finite. The repeated EMA grid had identical SHA-256 `5e589d65fdd6bbc55d6c774b9f3a2deacd6b137de94e84c49cac6b3ab1eb8b82`.
 
+## 10k Checkpoint Evaluation
+
+No further training was started for this evaluation. The immutable checkpoint is `outputs/afhq_cat_sit_b_128/checkpoints/step_0010000.pt`: `global_step=10000`, SHA-256 `98b93bcdad272cd4d345752e3a00294cd113012373051ae1c41738cbe34353d0`. It contains finite raw and EMA weights plus optimizer, scheduler, and saved Python/NumPy/Torch/CUDA RNG state. TensorBoard's final recorded training values are total loss `1.549681`, flow loss `0.796257`, and learning rate `9.817718e-05`.
+
+The fixed visual protocol reuses the step-5k preview noise: 16 images, seed `123`, class 0, Heun-25, CFG 1.0. The decoded raw/EMA 10k previews are finite. `evaluation/afhq_cat_sit_b_128/step_0010000_visual/raw_5k_vs_10k.png` places the raw step-5k and step-10k grids side by side (SHA-256 `0ad9c11083e8c8bf8fd290d1b3e29f5c05ac2098c28950af407bf8856783ea69`). Raw 10k has clearer cat silhouettes, eyes, fur boundaries, and backgrounds than raw 5k, while retaining a diverse set of poses and colours. Some eyes, mouths, and fur/background boundaries remain malformed. EMA 10k is visibly much less coherent than raw, consistent with an EMA that still includes early-training weights; CFG 1.5 was not repeated.
+
+Quick held-out evaluation used the same 200 seeds (`1000..1199`), Heun-50, CFG 1.0, and the 500-image AFHQ held-out split:
+
+| Weights | FID | KID | Precision | Recall | Failed images | Feature duplicates |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| raw | 55.644 | 0.02740 | 0.290 | 0.802 | 0 | 0 |
+| EMA | 329.019 | 0.32997 | 0.000 | 0.000 | 0 | 0 |
+
+Raw is the unambiguous winner and was the only variant evaluated on the full protocol. Full raw held-out evaluation uses 1,000 fixed seeds (`1000..1999`), Heun-50, CFG 1.0: FID `49.554`, KID `0.02930`, precision `0.257`, recall `0.684`, zero failed images, and zero feature duplicate pairs. Sampling took `70.23 s`; the grid SHA-256 is `9bc483606078b24350ed62771c46ecfffccccc24269ea23eae4ed406886f6a53`.
+
+`nearest_real.png`, `outlier_pairs.png`, and `nearest_pairs.json` are saved under `evaluation/afhq_cat_sit_b_128/step_0010000/full_raw_cfg1_heun50/`. Nearest-train inspection is also saved there as `nearest_train_pairs.png` and JSON. Mean nearest feature distance is `9.64` to held-out test and `9.03` to the 5,153-source train set; `927/1000` generated images are feature-closer to train than to held-out test, which is expected from the training distribution but is not by itself evidence of copying. The nearest-train visual pairs contain similar cats but no exact visual copies. This is a limited feature-space memorization check, not a proof of absence of memorization.
+
+Sampling determinism was confirmed by repeating the raw 200-seed protocol: both grids have SHA-256 `8d3ecb064847dab22039c94b4a5599b83b40a882ebe47e08b32d014655d61dff`. The checkpoint SHA-256 stayed unchanged before and after every evaluation, so its stored training RNG state was not modified.
+
+### Decision
+
+Continue the existing non-REPA recipe to 20k, without resetting EMA or changing the optimizer/schedule. Raw quality and full FID improve sufficiently to justify the next 10k interval, and there are no finite, duplicate, or obvious memorization failures. Treat raw as the canonical 10k result; inspect raw and EMA again at 15k and 20k before deciding whether EMA needs a separate warm-up treatment.
+
 ## Design
 
 - Dataset: official AFHQ cats only. Expected local layout is `datasets/afhq/train/cat` plus `datasets/afhq/test/cat`; the official StarGAN v2 `val/cat` held-out layout is accepted as a read-only test alias.

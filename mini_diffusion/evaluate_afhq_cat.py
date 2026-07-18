@@ -57,15 +57,28 @@ def duplicate_diagnostics(features: torch.Tensor, threshold: float) -> dict[str,
     return {"nearest_generated_feature_distance_mean": float(nearest.mean()), "nearest_generated_feature_distance_min": float(nearest.min()), "duplicate_feature_threshold": threshold, "duplicate_pairs": int(pairs)}
 
 
-def write_result(output: Path, checkpoint_path: Path | None, images: torch.Tensor, generated_features: torch.Tensor, reference_images_tensor: torch.Tensor, reference_features: torch.Tensor, metadata: dict, metrics: dict) -> None:
+def write_result(output: Path, checkpoint_path: Path | None, images: torch.Tensor, generated_features: torch.Tensor, reference_images_tensor: torch.Tensor, reference_paths: list[str], reference_features: torch.Tensor, metadata: dict, metrics: dict) -> None:
     output.mkdir(parents=True, exist_ok=True); save_image(images, output / "grid.png", nrow=10)
-    distances = torch.cdist(generated_features.float(), reference_features.float()); nearest = distances.argmin(1)
-    selected = torch.arange(min(20, len(images)))
+    distances = torch.cdist(generated_features.float(), reference_features.float()); nearest_distances, nearest = distances.min(1)
+    selected = torch.arange(min(20, len(images))); outliers = nearest_distances.topk(min(20, len(images))).indices
     paired = torch.stack([item for index in selected.tolist() for item in (images[index], reference_images_tensor[nearest[index]])])
     save_image(paired, output / "nearest_real.png", nrow=4)
+    outlier_pairs = torch.stack([item for index in outliers.tolist() for item in (images[index], reference_images_tensor[nearest[index]])])
+    save_image(outlier_pairs, output / "outlier_pairs.png", nrow=4)
+    pairs = {"nearest": [{"generated_index": int(index), "reference_path": reference_paths[int(nearest[index])], "feature_distance": float(nearest_distances[index])} for index in selected.tolist()], "outliers": [{"generated_index": int(index), "reference_path": reference_paths[int(nearest[index])], "feature_distance": float(nearest_distances[index])} for index in outliers.tolist()]}
     metadata.update({"checkpoint": str(checkpoint_path) if checkpoint_path else None, "checkpoint_sha256": sha256(checkpoint_path) if checkpoint_path else None, "grid_sha256": sha256(output / "grid.png")})
     (output / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True), encoding="utf-8")
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+    (output / "nearest_pairs.json").write_text(json.dumps(pairs, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def write_train_nearest_pairs(output: Path, images: torch.Tensor, generated_features: torch.Tensor, train_images: torch.Tensor, train_paths: list[str], train_features: torch.Tensor) -> None:
+    distances = torch.cdist(generated_features.float(), train_features.float()); nearest_distances, nearest = distances.min(1)
+    selected = torch.arange(min(20, len(images)))
+    pairs = torch.stack([item for index in selected.tolist() for item in (images[index], train_images[nearest[index]])])
+    save_image(pairs, output / "nearest_train_pairs.png", nrow=4)
+    payload = [{"generated_index": int(index), "train_path": train_paths[int(nearest[index])], "feature_distance": float(nearest_distances[index])} for index in selected.tolist()]
+    (output / "nearest_train_pairs.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def generated_images(checkpoint: dict, cfg: dict, *, weights: str, samples: int, seed_start: int, steps: int, guidance_scale: float, device: torch.device, batch_size: int) -> torch.Tensor:
@@ -88,7 +101,7 @@ def main() -> None:
     source.add_argument("--checkpoint")
     source.add_argument("--config", help="Required for --vae-ceiling before any training checkpoint exists.")
     parser.add_argument("--output", required=True); parser.add_argument("--weights", choices=("raw", "ema"), default="ema")
-    parser.add_argument("--samples", type=int, default=1000); parser.add_argument("--seed-start", type=int, default=1000); parser.add_argument("--steps", type=int, default=50); parser.add_argument("--guidance-scale", type=float, default=1.5); parser.add_argument("--sample-batch-size", type=int, default=20); parser.add_argument("--duplicate-threshold", type=float, default=0.1); parser.add_argument("--vae-ceiling", action="store_true")
+    parser.add_argument("--samples", type=int, default=1000); parser.add_argument("--seed-start", type=int, default=1000); parser.add_argument("--steps", type=int, default=50); parser.add_argument("--guidance-scale", type=float, default=1.5); parser.add_argument("--sample-batch-size", type=int, default=20); parser.add_argument("--duplicate-threshold", type=float, default=0.1); parser.add_argument("--vae-ceiling", action="store_true"); parser.add_argument("--check-train-memorization", action="store_true")
     args = parser.parse_args()
     checkpoint_path = Path(args.checkpoint) if args.checkpoint else None
     if checkpoint_path:
@@ -116,8 +129,15 @@ def main() -> None:
     if not torch.isfinite(images).all() or tuple(images.shape[1:]) != (3, 128, 128): raise RuntimeError("AFHQ evaluation produced invalid images")
     features = _batched_features(model, preprocess, images, device, 64)
     metrics = {"kid": kid(reference_features, features), "fid": fid(reference_features, features, device), "fid_sample_count": {"real": len(reference_features), "generated": len(features)}, "generative_precision": precision_recall(reference_features, features)[0], "generative_recall": precision_recall(reference_features, features)[1], "pixel": pixel_diagnostics(images), "nearest_test_feature_distance_mean": float(torch.cdist(features.float(), reference_features.float()).min(dim=1).values.mean()), **duplicate_diagnostics(features, args.duplicate_threshold)}
+    if args.check_train_memorization:
+        train_images, train_paths = reference_images(cfg, "train"); train_features = _batched_features(model, preprocess, train_images, device, 64)
+        train_nearest = torch.cdist(features.float(), train_features.float()).min(dim=1).values
+        test_nearest = torch.cdist(features.float(), reference_features.float()).min(dim=1).values
+        metrics.update({"nearest_train_feature_distance_mean": float(train_nearest.mean()), "nearest_train_feature_distance_min": float(train_nearest.min()), "train_nearer_than_test_count": int((train_nearest < test_nearest).sum()), "train_reference_count": len(train_features)})
     metadata = {"mode": mode, "weights": args.weights, "sampler": "heun", "steps": args.steps, "guidance_scale": args.guidance_scale, "seed_start": args.seed_start, "samples": len(images), "test_split_paths": test_paths, "sampling_seconds": time.perf_counter() - started, "device": str(device), "torch": torch.__version__, "vae_model_id": cfg["vae"]["model_id"], "latent_scaling_factor": cfg["vae"].get("scaling_factor", "from_vae_config")}
-    write_result(Path(args.output), checkpoint_path, images, features, test_images, reference_features, metadata, metrics); print(json.dumps(metrics, indent=2, sort_keys=True))
+    write_result(Path(args.output), checkpoint_path, images, features, test_images, test_paths, reference_features, metadata, metrics); print(json.dumps(metrics, indent=2, sort_keys=True))
+    if args.check_train_memorization:
+        write_train_nearest_pairs(Path(args.output), images, features, train_images, train_paths, train_features)
 
 
 if __name__ == "__main__":

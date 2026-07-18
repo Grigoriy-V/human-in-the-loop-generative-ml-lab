@@ -407,3 +407,17 @@ Downloaded the official original AFHQ archive and extracted only `afhq/train/cat
 ### Decision
 
 The project is ready for the bounded first 10k run with physical batch 128 and accumulation 2 (effective batch 256). Keep the 100k scheduler horizon while invoking `--max-steps 10000`. No long AFHQ training or 1,000-sample generated evaluation was started in this milestone.
+
+## 2026-07-18: AFHQ Cats SiT-B/2 10k Evaluation
+
+### Goal
+
+Evaluate the immutable 10k AFHQ Cats checkpoint without any further training, compare raw and EMA fairly, and choose the next action from fixed held-out metrics and images.
+
+### Outcome
+
+`step_0010000.pt` is finite at `global_step=10000` with SHA-256 `98b93bcdad272cd4d345752e3a00294cd113012373051ae1c41738cbe34353d0`; its final logged loss is `1.549681` and LR `9.817718e-05`. Fixed Heun-25 CFG 1.0 raw 10k previews are clearer than raw 5k, while EMA 10k is still incoherent. The shared 200-seed Heun-50 CFG 1.0 quick protocol selected raw decisively: FID `55.644` / KID `0.02740` / precision `0.290` / recall `0.802`, versus EMA FID `329.019`, KID `0.32997`, and zero precision/recall. Full raw evaluation on 1,000 fixed seeds produced FID `49.554`, KID `0.02930`, precision `0.257`, recall `0.684`, zero failed images, and zero feature duplicate pairs. Repeated raw sampling was byte-identical and checkpoint SHA-256 did not change. Nearest held-out, outlier, and nearest-train pairs were written outside Git; no exact visual train copies were found in the inspected pairs.
+
+### Decision
+
+Continue the same non-REPA run to 20k without resetting EMA or changing the training recipe. Use raw as the canonical 10k checkpoint output and repeat raw/EMA comparison at 15k and 20k. No training was launched by this evaluation milestone.
