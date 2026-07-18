@@ -421,3 +421,17 @@ Evaluate the immutable 10k AFHQ Cats checkpoint without any further training, co
 ### Decision
 
 Continue the same non-REPA run to 20k without resetting EMA or changing the training recipe. Use raw as the canonical 10k checkpoint output and repeat raw/EMA comparison at 15k and 20k. No training was launched by this evaluation milestone.
+
+## 2026-07-18: Structured ML Experiment Ledger
+
+### Goal
+
+Create one append-only, schema-validated record for material ML operations without changing training, evaluation, checkpoints, or active experiment reports.
+
+### Outcome
+
+Added `reports/experiment_ledger.jsonl`, its JSON Schema, and logging documentation. The initial ledger records only confirmed CIFAR-10 closure, Imagenette baseline/REPA milestones and evaluations, and AFHQ data/cache/benchmark/smoke/training facts. All 15 JSONL records passed Draft 2020-12 schema validation; checks found no absolute Windows paths or secret-like values. The concurrent AFHQ 10k evaluation is intentionally not entered as completed by this setup task.
+
+### Decision
+
+Use the ledger as the canonical structured input for a future ML Training Playbook, reusable skills, and agent orchestration pipeline. Corrections must be represented by new ledger events rather than editing historical records.

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mini Diffusion ML Experiment Ledger Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "timestamp_utc", "experiment_id", "event_type", "status", "git_commit", "config_path", "config_sha256", "dataset_fingerprint", "checkpoint_path", "checkpoint_step", "checkpoint_sha256", "exact_command", "runtime", "metrics", "artifacts", "decision", "decision_reason", "notes"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "event_id": {"type": "string", "minLength": 1},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "experiment_id": {"type": "string", "minLength": 1},
+    "event_type": {"enum": ["experiment_created", "data_preflight", "cache_created", "smoke_test", "benchmark", "training_milestone", "evaluation", "decision", "experiment_closed", "correction"]},
+    "status": {"enum": ["completed", "failed", "skipped", "pending"]},
+    "git_commit": {"type": ["string", "null"]},
+    "config_path": {"type": ["string", "null"]},
+    "config_sha256": {"type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{64}$"},
+    "dataset_fingerprint": {"type": ["string", "null"]},
+    "checkpoint_path": {"type": ["string", "null"]},
+    "checkpoint_step": {"type": ["integer", "null"], "minimum": 0},
+    "checkpoint_sha256": {"type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{64}$"},
+    "exact_command": {"type": ["string", "null"]},
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device", "gpu", "dtype", "batch", "effective_batch", "duration_seconds"],
+      "properties": {
+        "device": {"type": ["string", "null"]},
+        "gpu": {"type": ["string", "null"]},
+        "dtype": {"type": ["string", "null"]},
+        "batch": {"type": ["integer", "null"], "minimum": 1},
+        "effective_batch": {"type": ["integer", "null"], "minimum": 1},
+        "duration_seconds": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "metrics": {"type": "object"},
+    "artifacts": {"type": "object"},
+    "decision": {"enum": ["continue", "stop", "change", "freeze", null]},
+    "decision_reason": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]}
+  }
+}
