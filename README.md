@@ -61,6 +61,6 @@ The eight-seed grid is illustrative; model selection used the quick-200 metrics 
 
 This repository tracks code, compact reports, configurations, hashes, and selected visuals. Datasets, checkpoints, caches, logs, and full evaluation outputs are intentionally ignored. The observed environment is Windows with Python 3.12 and an RTX 4090; dependencies are not fully pinned and no cross-platform or cloud claim is made.
 
-Training and evaluation can be expensive and are human-gated. Start with the [reproducibility guide](docs/reproducibility.md), not a long-run command. Third-party attribution is documented, while the project code license is still pending before a public release.
+Training and evaluation can be expensive and are human-gated. Start with the [reproducibility guide](docs/reproducibility.md), not a long-run command. Repository-owned code is available under the [MIT License](LICENSE); third-party datasets, weights, and checkpoints remain subject to their own terms in [THIRD_PARTY.md](THIRD_PARTY.md). The public repository is [Grigoriy-V/human-in-the-loop-generative-ml-lab](https://github.com/Grigoriy-V/human-in-the-loop-generative-ml-lab).
 
 For a no-download, no-GPU check of public packaging and evidence integrity, run `python tools/verify_public_repo.py` with Python 3.11+; it does not reproduce ML metrics. Details and limits are in the [reproducibility guide](docs/reproducibility.md).

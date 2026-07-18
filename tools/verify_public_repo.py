@@ -26,6 +26,8 @@ PUBLIC_DOCS = (
     ROOT / "ML_PROJECT_ROADMAP.md",
 )
 REQUIRED_EVIDENCE = (
+    ROOT / "LICENSE",
+    ROOT / "THIRD_PARTY.md",
     ROOT / "PROJECT_LOG.md",
     ROOT / "reports" / "afhq_cat_sit_b_128_repa_early_stop_results.md",
     ROOT / "reports" / "portfolio_claim_evidence_matrix.md",
@@ -120,6 +122,20 @@ def check_required_evidence(errors: list[str]) -> None:
             )
 
 
+def check_repository_identity(errors: list[str]) -> None:
+    stale_identifier = "Grigoriy-V/ML_U-Net_test"
+    for document in PUBLIC_DOCS:
+        try:
+            text = document.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if stale_identifier in text:
+            errors.append(
+                f"stale GitHub repository identifier in {relative(document)}: "
+                f"{stale_identifier}"
+            )
+
+
 def tracked_files() -> list[str] | None:
     try:
         result = subprocess.run(
@@ -151,6 +167,7 @@ def main() -> int:
     check_ledgers(errors)
     check_links(errors)
     check_required_evidence(errors)
+    check_repository_identity(errors)
     git_summary = check_forbidden_artifacts(errors)
     if errors:
         print(f"public evidence verification FAILED ({len(errors)} issue(s))")

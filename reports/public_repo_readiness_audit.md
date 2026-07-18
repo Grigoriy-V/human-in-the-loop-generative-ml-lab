@@ -47,3 +47,7 @@ Proceed to the final public-readiness review only when all of the following are 
 ## Audit limitations
 
 This audit did not execute code or verify external URLs, licenses, model-download access, GPU compatibility, or actual secret values. The secret result is a static tracked-file check only; it is not a substitute for a hosted secret scanner or a legal review.
+
+## Closeout addendum — 2026-07-18
+
+This addendum records the approved release-gate resolution; the audit above remains the historical pre-closeout snapshot. The original P1 blockers are resolved: repository-owned material is now covered by the [MIT License](../LICENSE), and [THIRD_PARTY.md](../THIRD_PARTY.md) distinguishes that license from external datasets, models, weights, checkpoints, and their terms. The executive [README](../README.md), case study, technical retrospective, compact visuals, claim matrix, and independent Head-of-AI review are present. `python tools/verify_public_repo.py` now requires the license and attribution file as public evidence. No ML run was performed for this closeout.

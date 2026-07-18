@@ -92,9 +92,9 @@ CIFAR-10 DDPM
 
 ## 2. Текущий этап
 
-### 2.1 Portfolio Packaging & Repository Readiness — 🟡 активный этап и обязательный gate
+### 2.1 Portfolio Packaging & Repository Readiness — ✅ завершён
 
-**Решение:** обучение, evaluation и новое ML-исследование временно поставлены на паузу. До packaging closeout не запускать новые training/evaluation/ML research задачи, если пользователь явно не отменит этот gate. После closeout вернуться к `Cats → all AFHQ transfer`.
+**Решение:** packaging closeout принят. Подготовлены executive `README.md`, `docs/portfolio_case_study.md`, `docs/technical_retrospective.md`, четыре компактных visual assets, claim-to-evidence matrix, public verifier, third-party attribution и независимый Head-of-AI review. Репозиторий получил [MIT License](LICENSE), а публичное имя изменено на `Grigoriy-V/human-in-the-loop-generative-ml-lab`. Временный packaging gate снят; следующий готовый ML-шаг — `Cats → all AFHQ transfer`, но эта запись не авторизует его запуск без отдельного human-gated решения.
 
 **Позиционирование:** один интегрированный публичный кейс — **Human-in-the-Loop Generative ML Lab**. Он показывает связную систему из двух ясно разделённых, но связанных частей:
 
@@ -131,6 +131,8 @@ E. Переписать `README.md` и короткий case study.
 F. Написать technical retrospective.
 G. Провести независимый review с позиции Head of AI: link/render/claim checks.
 H. Принять packaging closeout decision, затем снять gate и вернуться к `Cats → all AFHQ transfer`.
+
+**Фактический closeout:** пункты A–H завершены. Проверка `python tools/verify_public_repo.py`, Markdown links, agent-ledger schema и `git diff --check` выполнена в release closeout; ML training/evaluation не запускались.
 
 #### Критерии приёмки packaging closeout
 
@@ -343,20 +345,15 @@ Training evaluator плюс production-oriented QA/Inspector с автомати
 ## 10. Точный порядок ближайших действий
 
 1. ✅ Завершить early-stop `REPA 10k → OFF → 20k`, quick-200 comparison и freeze raw checkpoint; full-1000 сознательно не запускался.
-2. Провести evidence/claim inventory и public-repo readiness audit для `Human-in-the-Loop Generative ML Lab`.
-3. Сформировать information architecture, claim-to-evidence matrix и visual package.
-4. Подготовить executive `README.md` и `docs/portfolio_case_study.md`.
-5. Подготовить `docs/technical_retrospective.md` и проверить readability без дублирования raw ledgers.
-6. Провести независимый Head-of-AI review, link/render/claim checks и final public-readiness checklist.
-7. Принять packaging closeout; до него не запускать новые ML training/evaluation/research операции без явного решения пользователя.
-8. После closeout начать transfer Cat → all AFHQ classes.
-9. Реализовать img2img.
-10. Реализовать hires fix около 192–256 px.
-11. Сформировать Training & Evaluation Playbook v1.
-12. Превратить стабильные операции в agent skills/pipeline.
-13. Перейти к RAE 128.
-14. После этого решить вопрос native 256 и/или облака.
-15. Собрать Generated Image Inspector как отдельный Applied AI продукт.
+2. ✅ Закрыть `Portfolio Packaging & Repository Readiness`: README, case study, retrospective, visuals, verifier, attribution, MIT, независимый review и переименование публичного репозитория.
+3. Следующий готовый шаг: подготовить и представить на отдельное human-gated утверждение `Cats → all AFHQ transfer`; не запускать обучение или evaluation автоматически.
+4. После утверждённого transfer — реализовать img2img.
+5. Реализовать hires fix около 192–256 px.
+6. Сформировать Training & Evaluation Playbook v1.
+7. Превратить стабильные операции в agent skills/pipeline.
+8. Перейти к RAE 128.
+9. После этого решить вопрос native 256 и/или облака.
+10. Собрать Generated Image Inspector как отдельный Applied AI продукт.
 
 ## Как обновлять этот файл
 

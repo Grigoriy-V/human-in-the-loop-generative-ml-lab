@@ -80,3 +80,7 @@ I found no P0 issue and no P1 content defect. The current materials correctly ca
 ## Review limits
 
 This was a static review. It did not rerun ML training, evaluation, tests, downloads, external license verification, or inspect ignored checkpoints/evaluation outputs. The findings rely on the tracked reports, configuration references, ledgers, and curated visual assets.
+
+## Release-gate resolution — 2026-07-18
+
+The conditional verdict above is retained as a historical review snapshot. On owner approval, the project added the [MIT License](../LICENSE) for repository-owned code; [THIRD_PARTY.md](../THIRD_PARTY.md) continues to preserve the separate terms of external materials. This resolves the sole P1 legal/release gate identified by the review. It does not change the review's ML, reproducibility, or static-review limitations.
