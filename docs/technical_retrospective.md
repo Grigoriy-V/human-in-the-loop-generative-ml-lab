@@ -26,9 +26,13 @@ The pixel-to-latent move changed where errors could enter. In the DDPM path, the
 
 The flow formulation also changed the sampling contract. The SiT predicts a velocity field and the sampler integrates it with Euler or Heun steps, rather than applying the earlier DDPM posterior update. Fixed sampler type and step count therefore became mandatory comparison fields. The evaluator was built to hold those choices constant rather than allowing an improved sampler setting to masquerade as an improved checkpoint.
 
+The modelling objective changed with the architecture: DDPM trained a noise predictor, whereas SiT trained a velocity field and sampled it through numerical integration. REPA added auxiliary representation alignment to the unchanged flow objective; it was not a replacement sampling method.
+
 ## 3. Compare representation alignment without erasing the caveat
 
 REPA was introduced as a frozen DINOv2-teacher alignment term with a student projector. On Imagenette, the headline result is useful but narrow: under a fixed 1,000-sample EMA Heun-50 protocol, REPA at 350k versus a 100k baseline improved FID (130.96 vs 149.95), KID (0.05199 vs 0.06103), target accuracy (29.5% vs 26.9%), and recall (72.1% vs 51.0%), with slightly lower precision (23.9% vs 24.6%).
+
+For AFHQ REPA, the frozen DINOv2 teacher received the exact cached crop/flip used for each VAE latent, followed by a 224-pixel bicubic resize and ImageNet normalization. Feature preparation verified path, augmentation seed/index, split, and source hash before writing features. This prevents mixing teacher and student views; it does not prove absence of data leakage.
 
 The comparison is cross-step. There is no 350k non-REPA control, so it cannot establish that REPA converges faster or wins at the same training budget. That distinction influenced the next experiment: AFHQ Cats would use a direct, unified comparison rather than an aesthetic impression of different runs.
 
@@ -39,6 +43,8 @@ That caveat is an example of why experiment labels matter. “REPA 350k versus b
 The evaluator fixes the held-out reference split, seed range, sampler, CFG, VAE, and feature extractor. It reports FID, KID, precision, recall, finite/black-white/low-detail diagnostics, duplicates, and nearest-neighbour artifacts. It also records checkpoint hashes before and after evaluation and tests fixed-seed determinism. Those checks do not prove perceptual quality or absence of memorisation, but they reduce obvious comparison drift. [AFHQ result report](../reports/afhq_cat_sit_b_128_repa_early_stop_results.md)
 
 For AFHQ Cats, three raw 20k variants were compared under the same quick protocol: held-out data, 200 fixed seeds (1000–1199), Heun-50, and CFG 1.0.
+
+On the recorded local RTX 4090 cache benchmark, batch 128 with accumulation two was selected over physical batch 256 because it was faster (2,152.02 vs 2,057.33 images/s) and used less peak VRAM (5.27 vs 8.78 GB); this is protocol-bound, not a general hardware claim.
 
 | Variant | FID ↓ | KID ↓ | Precision ↑ | Recall ↑ |
 | --- | ---: | ---: | ---: | ---: |
@@ -90,6 +96,6 @@ The project incurred local GPU work, model/data downloads, and evaluation cost; 
 
 Next, I would instrument raw input, cached input, output, and reasoning-token counts for every root and worker run, together with model/profile, task identifier, start/end time, result status, and workload class. A useful comparison needs matched tasks and the same observation window; it should separate routing effects from caching, prompt size, model choice, and changes in task complexity. Only then would token cost per accepted outcome become a defensible metric.
 
-On the ML side, the current frozen checkpoint should be used only as the parent for the separately scoped Cats-to-all-AFHQ transfer experiment. Packaging and public-readiness remediation remain the active gate; no new ML run is implied here.
+Portfolio packaging and public readiness are complete. The current frozen checkpoint remains the intended parent for a separately scoped Cats-to-all-AFHQ transfer experiment, which still requires separate human authorization and has not started.
 
 For the compact portfolio narrative, see the [case study](portfolio_case_study.md). For the source-of-truth claim boundaries, see the [claim matrix](../reports/portfolio_claim_evidence_matrix.md).

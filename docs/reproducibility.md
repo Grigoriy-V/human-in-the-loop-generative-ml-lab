@@ -24,6 +24,6 @@ Training, sampling, cache preparation, benchmark, and evaluation commands may re
 
 The current AFHQ Cats decision is based on a quick-200 protocol, not a full-1000 confirmation. The frozen checkpoint, dataset, and full evaluator artifacts are local/ignored; the tracked [result report](../reports/afhq_cat_sit_b_128_repa_early_stop_results.md) is the public evidence entry point.
 
-## Before public release
+## Public packaging status
 
-Third-party attribution and use boundaries are now documented in [THIRD_PARTY.md](../THIRD_PARTY.md), and the standard-library verifier provides a portable packaging check. The project code license is still pending; a final secret/link/render review is also required before public release. The earlier [readiness audit](../reports/public_repo_readiness_audit.md) is retained as the pre-remediation snapshot.
+The repository now includes an [MIT license](../LICENSE) and documented [third-party attribution and use boundaries](../THIRD_PARTY.md). Final public-evidence verification and review passed; the earlier [readiness audit](../reports/public_repo_readiness_audit.md) remains the pre-remediation snapshot. This closes packaging readiness, not full ML reproducibility: numerical results still depend on ignored datasets, checkpoints, caches, the recorded local environment, and human-gated expensive runs.
