@@ -61,3 +61,5 @@ Early-stop improves FID by 4.71% and KID by 17.53% versus the baseline in this p
 This repository tracks code, compact reports, configurations, hashes, and selected small visuals. Datasets, checkpoints, latent/feature caches, TensorBoard logs, and full evaluation outputs are intentionally ignored; reports point to their local paths and hashes where relevant. The observed environment is Windows with Python 3.12 and an RTX 4090, but dependencies are not fully pinned and no cross-platform or cloud claim is made.
 
 Training and evaluation can be expensive and are human-gated. Start with the [reproducibility guide](docs/reproducibility.md), not a long-run command. A code license and consolidated third-party attribution policy are still pending before a public release.
+
+For a no-download, no-GPU check of public packaging and evidence integrity, run `python tools/verify_public_repo.py` with Python 3.11+; it does not reproduce ML metrics. Details and limits are in the [reproducibility guide](docs/reproducibility.md).

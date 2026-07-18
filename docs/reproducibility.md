@@ -6,18 +6,17 @@ The observed development environment was **Windows**, **Python 3.12**, and an **
 
 The repository tracks source code, configurations, compact reports, selected curated visuals, and append-only evidence ledgers. It intentionally ignores datasets, checkpoints, latent/feature caches, training logs, and full evaluation output. Where a local artifact mattered to a decision, its report records a repository-relative location and/or SHA-256.
 
-## Cheap inspection path
+## Portable evidence verification
 
-Run these from the repository root in PowerShell. They are source/evidence inspections, not ML validation, and were **not re-run during portfolio packaging**.
+From a fresh clone, run this from the repository root with Python 3.11 or newer:
 
 ```powershell
-git status --short
-git diff --check
-Get-Content reports\afhq_cat_sit_b_128_repa_early_stop_results.md
-Get-Content reports\portfolio_claim_evidence_matrix.md
+python tools/verify_public_repo.py
 ```
 
-For the historical test command, see [operations guide](operations_guide.md). It is not presented as a current portable verification path because package versions and environment setup remain unpinned.
+It uses only the Python standard library and no network, GPU, model imports, datasets, checkpoints, or downloaded dependencies. On success it prints one concise `public evidence verification passed` line; on failure it lists actionable JSONL, public-link, required-evidence, visual-size, or tracked-artifact issues and exits nonzero. This path was run during portfolio packaging.
+
+It validates packaging and evidence integrity only. It does **not** reproduce numerical ML results, train, sample, benchmark, or evaluate a model. For historical Windows-oriented operational commands, see the [operations guide](operations_guide.md).
 
 ## Training and evaluation boundaries
 
@@ -28,4 +27,3 @@ The current AFHQ Cats decision is based on a quick-200 protocol, not a full-1000
 ## Before public release
 
 The readiness audit identifies remaining release blockers: choose a code license, add consolidated third-party attribution/use policy, provide a genuinely portable pinned inexpensive verification path, and run a final secret/link/render review. [Audit](../reports/public_repo_readiness_audit.md)
-
