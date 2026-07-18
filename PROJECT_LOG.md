@@ -259,3 +259,109 @@ Detailed evidence: [`reports/imagenette_sit_s_128_baseline_100k.md`](reports/ima
 ### Decision
 
 Use EMA Heun-50 with CFG 1.5 and the documented ten-class, five-seed protocol as the canonical pre-REPA baseline. Do not treat the 100k checkpoint as a completed long training run.
+
+## 2026-07-17: Imagenette SiT-S/2 + REPA Setup
+
+### Goal
+
+Prepare a separate from-scratch SiT-S/2 representation-alignment experiment while preserving the frozen 100k baseline unchanged.
+
+### Outcome
+
+Added a frozen DINOv2-B/14 feature-cache CLI, memory-mapped FP16 train features matched by relative path and label, block-8 SiT alignment, a training-only projector, REPA checkpoint/resume metadata, and tests. The full 9469-sample cache, debug train/resume/sampling path, deterministic preview, and batch-256 benchmark completed on CUDA.
+
+Detailed evidence: [`reports/imagenette_sit_s_128_repa_setup.md`](reports/imagenette_sit_s_128_repa_setup.md)
+
+### Decision
+
+Retain batch 256 with workers 4: cached REPA is stable and needs about 0.59 GB more allocated VRAM than baseline. Keep the new experiment isolated at `outputs/imagenette_sit_s_128_repa/`; full 0-to-100k REPA training is intentionally not started by setup.
+
+## 2026-07-18: Imagenette SiT Evaluator And REPA Snapshot
+
+### Goal
+
+Create a reproducible quality-evaluation protocol, freeze the latest REPA state, and determine whether the observed visual plateau reflects a VAE limitation, sampler choice, or the learned generative model.
+
+### Outcome
+
+- Stopped the requested REPA run and copied its atomically saved step-365k checkpoint to immutable `step_0365000.pt` after SHA-256 verification.
+- Added an evaluator with a shared fixed class/seed/noise protocol, cached ImageNet-Inception reference features, KID/FID, ImageNet ResNet class metrics, feature precision/recall, pixel diagnostics, nearest-real/outlier grids, and raw/EMA/Heun controls.
+- Quick evaluation selected REPA 350k provisionally among the available REPA milestones; this is not a final REPA claim because no baseline 150k exists.
+- VAE validation reconstruction was substantially better than all generated checkpoints, so VAE decoding is not the primary explanation for the plateau.
+- A 256-image garbage-truck generative overfit run reached recognisable raw SiT samples by 20k. Its 0.9999 EMA samples were still blurred, showing that short-run periodic EMA previews can lag far behind the learned raw model.
+
+Detailed results: [`reports/imagenette_sit_evaluator_setup.md`](reports/imagenette_sit_evaluator_setup.md)
+
+### Decision
+
+Use the evaluator protocol for future equal-step baseline-vs-REPA comparisons. Keep DINO metrics supplemental, never the sole quality judge. Do not change objective, scaling, or sampler mathematics based on the plateau alone; inspect raw and EMA side-by-side when evaluating short or restarted runs.
+
+## 2026-07-18: Non-REPA SiT Baseline Continuation To 200k
+
+### Goal
+
+Continue the frozen Imagenette SiT-S/2 baseline from 100k to 200k without REPA, preserving the original checkpoint and writing permanent 150k and 200k milestones.
+
+### Outcome
+
+The baseline resumed from `baseline_0100000.pt` and produced immutable `step_0150000.pt` and `step_0200000.pt`. The 200k checkpoint is finite and has no REPA state. A fixed all-class quick evaluation compared raw 100k/150k/200k and EMA 100k/200k. Neither raw nor EMA 200k improved FID/KID or target class accuracy over the 100k checkpoint; all generated images were finite and had no black/white failures.
+
+### Decision
+
+Keep the 100k EMA checkpoint as the current best quick-protocol non-REPA baseline. Treat the 200-sample evaluation as a diagnostic rather than a final ranking. Use the newly available equal-step baseline checkpoints for the next baseline-vs-REPA evaluation.
+
+## 2026-07-18: Equal-Step SiT Baseline Vs REPA At 150k
+
+### Goal
+
+Compare non-REPA and REPA SiT-S/2 checkpoints at the same 150k step with a larger fixed 1,000-sample evaluation before deciding whether a 200k comparison is necessary.
+
+### Outcome
+
+EMA Heun-50 evaluation with CFG 1.5 and identical all-class seeds produced nearly equal FID (`165.94` baseline, `165.28` REPA) and target accuracy (`20.1%`, `20.0%`). REPA improved feature-manifold precision from `20.9%` to `22.9%` and recall from `48.1%` to `62.3%`; no generated image failed finite or black/white validation.
+
+### Decision
+
+Do not run the conditional 200k comparison: the 14.2-point recall gain is material, so the matched 150k results are not close on diversity/coverage. Record REPA as improving coverage at 150k while retaining the mixed KID/FID outcome and avoiding a broader quality claim.
+
+## 2026-07-18: Completed Full Baseline Vs REPA Curve
+
+### Goal
+
+Complete the equal-step non-REPA baseline versus REPA curve at 100k, 150k, and 200k with one shared 1,000-sample evaluation protocol.
+
+### Outcome
+
+All three EMA Heun-50 comparisons completed with fixed class/seed/noise inputs and no failed images. Baseline was stronger at 100k (FID `149.95` vs `152.73`, accuracy `26.9%` vs `22.3%`). At 150k FID and accuracy were tied while REPA recall rose from `48.1%` to `62.3%`. At 200k REPA surpassed baseline on KID (`0.07204` vs `0.07634`), FID (`162.10` vs `171.78`), accuracy (`21.7%` vs `17.3%`), precision (`21.8%` vs `20.9%`), and recall (`71.3%` vs `63.5%`).
+
+### Decision
+
+Use the completed full curve as the current equal-step evidence: REPA is not beneficial at 100k but becomes favorable relative to the same-step baseline by 150k and clearly by 200k. Do not interpret this as REPA 200k exceeding the absolute 100k baseline; choose future comparisons according to the question being tested.
+
+## 2026-07-18: Full REPA 350k Vs Baseline 100k
+
+### Goal
+
+Measure the selected REPA 350k checkpoint against the strongest available 100k non-REPA baseline with the same full 1,000-image protocol.
+
+### Outcome
+
+REPA 350k improved FID from `149.95` to `130.96`, KID from `0.06103` to `0.05199`, class accuracy from `26.9%` to `29.5%`, and recall from `51.0%` to `72.1%`. Precision changed from `24.6%` to `23.9%`. Both sets had zero finite and black/white failures.
+
+### Decision
+
+Use REPA 350k EMA as the current checkpoint for visual and metric comparisons. Its improvement over baseline 100k is clear under the common protocol, but label it as a cross-step result because a non-REPA 350k control does not exist.
+
+## 2026-07-18: Imagenette SiT-S/2 Baseline Vs REPA Closure
+
+### Goal
+
+Close the Imagenette 128x128 baseline versus REPA experiment with final reproducibility checks and a directly inspectable side-by-side artifact, without further training or sampling.
+
+### Outcome
+
+Full pytest completed with `33 passed`. Frozen baseline 100k and REPA 350k checkpoints remain finite and retain their recorded SHA-256 values. A compact full-protocol side-by-side grid was generated from the existing 1,000-sample EMA Heun-50 grids and saved as `docs/assets/imagenette_sit_baseline100_vs_repa350_ema_heun50.png`.
+
+### Decision
+
+Close this experiment. The best baseline is EMA 100k; the best final model is REPA EMA 350k. REPA improves final quality and coverage, but it does not demonstrate earlier convergence: it is not favorable at 100k and becomes favorable only later in the equal-step curve. The next implementation milestone is deterministic img2img followed by low-strength hires fix around the selected REPA 350k model.

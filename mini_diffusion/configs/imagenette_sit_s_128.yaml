@@ -27,7 +27,7 @@ model:
   mlp_ratio: 4.0
   cond_drop_prob: 0.1
 train:
-  max_steps: 100000
+  max_steps: 200000
   learning_rate: 0.0001
   weight_decay: 0.01
   grad_accum_steps: 1
@@ -36,6 +36,7 @@ train:
   dtype: bf16
   log_every: 100
   save_every: 5000
+  milestone_every: 50000
   sample_every: 10000
 performance:
   fused_adamw: true

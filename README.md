@@ -224,3 +224,34 @@ Benchmark the full SiT configuration before a future full training run:
 ```
 
 The tested candidates selected physical batch `256` (no accumulation) on this RTX 4090. `sampling.preview_decode: true` writes an EMA-decoded PNG alongside each periodic latent preview; the frozen VAE is loaded only during this preview step and is never optimized. Do not interpret the debug training as a trained generative model: full Imagenette training has intentionally not been started.
+
+## Imagenette SiT-S/2 + REPA
+
+REPA is a separate from-scratch experiment. It never initializes from the frozen 100k baseline and writes only to `outputs\imagenette_sit_s_128_repa`. A frozen official [DINOv2 ViT-B/14](https://github.com/facebookresearch/dinov2) teacher is used only to create a memory-mapped FP16 cache; training and `sample_sit.py` do not load DINOv2.
+
+Create the full teacher-feature cache once. It matches cached samples by relative path and label, applies the same deterministic 128px crop, then resizes to 224px and pools DINO patch features from 16x16 to the SiT 8x8 token grid:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\prepare_repa_features.py --config mini_diffusion\configs\imagenette_sit_s_128_repa.yaml --split train
+```
+
+The debug chain uses a separate 64-sample cache and Windows-safe `num_workers: 0`:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\prepare_repa_features.py --config mini_diffusion\configs\imagenette_sit_s_128_repa_debug.yaml --split train --limit 64
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_repa_debug.yaml
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_repa_debug.yaml --resume outputs\imagenette_sit_s_128_repa_debug\checkpoints\latest.pt --max-steps 15
+```
+
+Run the prepared future experiment from scratch only after the feature cache is present. This is the exact 0-to-100k command; it is not run by setup or test commands:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\train_sit.py --config mini_diffusion\configs\imagenette_sit_s_128_repa.yaml
+```
+
+Benchmark baseline and cached REPA without writing a training checkpoint:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\benchmark_repa.py --config mini_diffusion\configs\imagenette_sit_s_128_repa.yaml --mode baseline --warmup 10 --steps 50 --output reports\repa_benchmark_baseline.json
+.\.venv\Scripts\python.exe mini_diffusion\benchmark_repa.py --config mini_diffusion\configs\imagenette_sit_s_128_repa.yaml --mode repa --warmup 10 --steps 50 --output reports\repa_benchmark_repa.json
+```

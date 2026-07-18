@@ -1,0 +1,15 @@
+{
+  "mode": "repa",
+  "batch": 256,
+  "workers": 4,
+  "warmup_steps": 10,
+  "measured_steps": 50,
+  "oom": false,
+  "attention_backend": "mem_efficient_sdp",
+  "images_per_second": 4720.263016057389,
+  "ms_per_step": 54.23426599940285,
+  "peak_allocated_gb": 4.578766822814941,
+  "peak_reserved_gb": 4.626953125,
+  "fused_adamw": true,
+  "projector_parameters": 6558464
+}

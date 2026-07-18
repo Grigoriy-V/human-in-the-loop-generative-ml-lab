@@ -1,0 +1,15 @@
+{
+  "mode": "baseline",
+  "batch": 256,
+  "workers": 4,
+  "warmup_steps": 10,
+  "measured_steps": 50,
+  "oom": false,
+  "attention_backend": "mem_efficient_sdp",
+  "images_per_second": 5932.670218174786,
+  "ms_per_step": 43.15089000156149,
+  "peak_allocated_gb": 3.9844870567321777,
+  "peak_reserved_gb": 4.072265625,
+  "fused_adamw": true,
+  "projector_parameters": 0
+}

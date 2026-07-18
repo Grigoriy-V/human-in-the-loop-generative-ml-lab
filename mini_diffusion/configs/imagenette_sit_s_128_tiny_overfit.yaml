@@ -1,0 +1,52 @@
+name: imagenette_sit_s_128_tiny_overfit
+seed: 123
+output_dir: outputs/imagenette_sit_s_128_tiny_overfit
+data:
+  dataset: imagenette-160
+  root: datasets/imagenette
+  cache_dir: outputs/imagenette_sit_s_128/latents
+  resolution: 128
+  latent_resolution: 16
+  num_classes: 10
+  cache_seed: 123
+  # n03417042 garbage truck, selected from the full deterministic train cache.
+  class_filter: 6
+  cache_limit: 256
+  batch_size: 64
+  num_workers: 0
+  pin_memory: true
+  non_blocking: true
+  persistent_workers: false
+vae:
+  model_id: stabilityai/sd-vae-ft-mse
+  revision: null
+model:
+  patch_size: 2
+  hidden_size: 384
+  depth: 12
+  num_heads: 6
+  mlp_ratio: 4.0
+  cond_drop_prob: 0.1
+train:
+  max_steps: 20000
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  grad_accum_steps: 1
+  grad_clip: 1.0
+  ema_decay: 0.9999
+  dtype: bf16
+  log_every: 100
+  save_every: 1000
+  sample_every: 1000
+performance:
+  fused_adamw: true
+  ema_foreach: true
+  cudnn_benchmark: true
+sampling:
+  preview_sampler: heun
+  preview_steps: 25
+  preview_seed: 123
+  preview_count: 8
+  preview_class: 6
+  guidance_scale: 1.5
+  preview_decode: true
