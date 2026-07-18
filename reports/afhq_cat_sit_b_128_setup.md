@@ -140,3 +140,17 @@ Before training, evaluate the VAE ceiling from the config. After a checkpoint ex
 .\.venv\Scripts\python.exe mini_diffusion\evaluate_afhq_cat.py --checkpoint outputs\afhq_cat_sit_b_128\checkpoints\step_0010000.pt --output evaluation\afhq_cat_sit_b_128\ema_cfg1_5 --weights ema --samples 1000 --steps 50 --guidance-scale 1.5
 .\.venv\Scripts\python.exe mini_diffusion\evaluate_afhq_cat.py --config mini_diffusion\configs\afhq_cat_sit_b_128.yaml --output evaluation\afhq_cat_sit_b_128\vae_ceiling_test --vae-ceiling --sample-batch-size 32
 ```
+
+## Unified Baseline vs REPA Quick Comparison
+
+The canonical one-command quick protocol is `mini_diffusion/evaluate_comparison.py` with `mini_diffusion/configs/evaluation/afhq_cat_baseline_vs_repa_10k_20k.yaml`. It uses the held-out AFHQ Cats split, 200 fixed seeds (1000--1199), class 0, Heun-50, CFG 1.0, the same VAE, and one shared Inception-v3 reference feature set. The generated report is `evaluation/afhq_cat_baseline_vs_repa_10k_20k/report.md`.
+
+| Variant | FID | KID | Precision | Recall |
+| --- | ---: | ---: | ---: | ---: |
+| baseline raw 10k | 55.644 | 0.02740 | 0.290 | 0.802 |
+| baseline raw 20k | 48.051 | 0.02052 | 0.340 | 0.754 |
+| REPA raw 10k | 62.305 | 0.03000 | 0.210 | 0.862 |
+| REPA raw 20k | 52.384 | 0.02531 | 0.310 | 0.722 |
+| REPA EMA 20k | 144.834 | 0.10749 | 0.030 | 0.564 |
+
+Both raw trajectories improve from 10k to 20k. REPA has stronger recall at 10k but lower FID/KID and precision than baseline; at 20k baseline remains ahead on all four reported metrics. Raw REPA 20k is the strongest REPA checkpoint in this comparison; EMA 20k is diagnostic-only and substantially weaker. Every variant has zero finite, black/white, low-detail, and feature-duplicate failures. All five fixed-seed probes were deterministic, and all checkpoint SHA-256 values were unchanged after evaluation. No full-1000 evaluation, sampler ablation, CFG sweep, or training was run.

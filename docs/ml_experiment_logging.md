@@ -30,3 +30,15 @@ Every event has `schema_version`, a unique `event_id`, and `timestamp_utc`. Hist
 ## Agent And Skill Use
 
 Agents append the event before their final response after a material ML operation. Skills can query the JSONL by `experiment_id`, checkpoint step, decision, or metric to build reproducible comparisons. A future ML Training Playbook will derive runbooks, gate checks, checkpoint selection, and agent orchestration state from this ledger rather than from prose-only reports.
+
+## Standard Experiment Comparisons
+
+Standard experiment comparisons run through one comparison CLI with a frozen protocol config. Use individual manual evaluation commands only to diagnose a case the comparison CLI does not support; do not use them to assemble a reported comparison.
+
+For the AFHQ Cats baseline versus REPA 10k/20k quick protocol:
+
+```powershell
+.\.venv\Scripts\python.exe mini_diffusion\evaluate_comparison.py --config mini_diffusion\configs\evaluation\afhq_cat_baseline_vs_repa_10k_20k.yaml
+```
+
+The CLI verifies the checkpoint inputs, uses shared fixed seeds and held-out reference features, writes JSON/CSV/Markdown plus paired grids, verifies that checkpoint hashes did not change, and appends its completed event to the ledger.

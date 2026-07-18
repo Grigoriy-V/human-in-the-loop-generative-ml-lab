@@ -1,0 +1,53 @@
+name: afhq_cat_baseline_vs_repa_10k_20k
+output_dir: evaluation/afhq_cat_baseline_vs_repa_10k_20k
+protocol:
+  samples: 200
+  seed_start: 1000
+  class_id: 0
+  sampler: heun
+  steps: 50
+  guidance_scale: 1.0
+  sample_batch_size: 20
+  duplicate_threshold: 0.1
+variants:
+  - id: baseline_raw_10k
+    experiment: baseline
+    checkpoint: outputs/afhq_cat_sit_b_128/checkpoints/step_0010000.pt
+    expected_step: 10000
+    weights: raw
+  - id: baseline_raw_20k
+    experiment: baseline
+    checkpoint: outputs/afhq_cat_sit_b_128/checkpoints/best_raw_0020000.pt
+    expected_step: 20000
+    weights: raw
+  - id: repa_raw_10k
+    experiment: repa
+    checkpoint: outputs/afhq_cat_sit_b_128_repa/checkpoints/step_0010000.pt
+    expected_step: 10000
+    weights: raw
+  - id: repa_raw_20k
+    experiment: repa
+    checkpoint: outputs/afhq_cat_sit_b_128_repa/checkpoints/step_0020000.pt
+    expected_step: 20000
+    weights: raw
+  - id: repa_ema_20k
+    experiment: repa
+    checkpoint: outputs/afhq_cat_sit_b_128_repa/checkpoints/step_0020000.pt
+    expected_step: 20000
+    weights: ema
+comparisons:
+  - id: baseline_10k_vs_20k
+    left: baseline_raw_10k
+    right: baseline_raw_20k
+  - id: repa_10k_vs_20k
+    left: repa_raw_10k
+    right: repa_raw_20k
+  - id: baseline_vs_repa_10k
+    left: baseline_raw_10k
+    right: repa_raw_10k
+  - id: baseline_vs_repa_20k
+    left: baseline_raw_20k
+    right: repa_raw_20k
+  - id: repa_raw_vs_ema_20k
+    left: repa_raw_20k
+    right: repa_ema_20k

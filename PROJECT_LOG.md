@@ -467,3 +467,17 @@ The DINOv2 ViT-B/14 teacher cache contains 20,612 finite grids paired with the e
 ### Decision
 
 Commit the isolated config and readiness evidence before training. The REPA run is ready to begin at step 0 through 20k, saving independent checkpoints and previews every 5k. No long REPA training, full evaluation, or sampler ablation was launched by this milestone.
+
+## 2026-07-18: AFHQ Cats Baseline Vs REPA Quick Comparison
+
+### Goal
+
+Create and run one reproducible quick-200 evaluation command that compares AFHQ Cats baseline and REPA raw checkpoints at 10k and 20k, plus REPA EMA 20k.
+
+### Outcome
+
+The comparison CLI verified all checkpoint steps, architecture/VAE compatibility, finite weights, held-out split isolation, and checkpoint SHA-256 immutability. It generated five labelled fixed-seed grids, five nearest/outlier sets, five paired comparison grids, JSON/CSV/Markdown outputs, and an append-only ledger event. Baseline improved from FID `55.644` to `48.051`; REPA raw improved from `62.305` to `52.384`. At matched 10k and 20k budgets, baseline retained lower FID/KID and higher precision; REPA had higher recall only at 10k. REPA EMA 20k was substantially weaker than raw. All samples were finite with zero black/white, low-detail, and feature-duplicate failures.
+
+### Decision
+
+Use `evaluation/afhq_cat_baseline_vs_repa_10k_20k/report.md` and its paired grids as the canonical equal-budget evidence. Treat REPA raw 20k as the best REPA checkpoint so far, but do not claim it exceeds baseline at the same training budget. Full-1000 evaluation, sampler ablation, CFG sweep, and training remain out of scope.
