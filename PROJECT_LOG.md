@@ -393,3 +393,17 @@ Verify scheduler horizon and deterministic augmentation guarantees before the fi
 ### Decision
 
 The code preflight is complete, but the project is not ready to start the actual 10k run until official AFHQ Cats files are available locally. The next action after dataset placement is cache preparation, which will write the real count report before VAE ceiling, IO benchmark, and train/resume/sample smoke are allowed to proceed.
+
+## 2026-07-18: AFHQ Cats Data And Runtime Readiness
+
+### Goal
+
+Download official AFHQ, prepare the real one-class Cats latent cache, and complete every bounded runtime check required before the first 10k SiT-B/2 run.
+
+### Outcome
+
+Downloaded the official original AFHQ archive and extracted only `afhq/train/cat` and held-out `afhq/val/cat`: `5,153` train and `500` held-out images. Full cache creation produced `20,612` train latents (four unique deterministic crop/flip variants per source) and `500` held-out latents. Held-out VAE ceiling was finite with FID `17.83` and no black/white or low-detail failures. Real cache benchmark on RTX 4090 selected physical batch 128: `2152.02 images/s`, `59.48 ms/step`, `5.27 GB` allocated peak, against batch 256 at `2057.33 images/s`, `124.43 ms/step`, `8.78 GB`. Both used memory-efficient SDP attention, fused AdamW, and foreach EMA. The debug chain passed: overfit loss `1.481043 -> 0.555858`, train checkpoint, resume to step 3, finite raw/EMA decoding, and deterministic repeated EMA PNG. Full pytest passed with `37 passed`.
+
+### Decision
+
+The project is ready for the bounded first 10k run with physical batch 128 and accumulation 2 (effective batch 256). Keep the 100k scheduler horizon while invoking `--max-steps 10000`. No long AFHQ training or 1,000-sample generated evaluation was started in this milestone.

@@ -1,0 +1,14 @@
+{
+  "batch": 256,
+  "workers": 4,
+  "warmup_steps": 10,
+  "measured_steps": 50,
+  "images_per_second": 2057.329743501806,
+  "ms_per_step": 124.43314000032842,
+  "peak_allocated_gb": 8.78358268737793,
+  "peak_reserved_gb": 9.134765625,
+  "attention_backend": "mem_efficient_sdp",
+  "fused_adamw": true,
+  "foreach_ema_configured": true,
+  "oom": false
+}

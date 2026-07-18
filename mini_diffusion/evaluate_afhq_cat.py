@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import torch
+import yaml
 from torchvision import models
 from torchvision.utils import save_image
 
@@ -56,13 +57,13 @@ def duplicate_diagnostics(features: torch.Tensor, threshold: float) -> dict[str,
     return {"nearest_generated_feature_distance_mean": float(nearest.mean()), "nearest_generated_feature_distance_min": float(nearest.min()), "duplicate_feature_threshold": threshold, "duplicate_pairs": int(pairs)}
 
 
-def write_result(output: Path, checkpoint_path: Path, images: torch.Tensor, generated_features: torch.Tensor, reference_images_tensor: torch.Tensor, reference_features: torch.Tensor, metadata: dict, metrics: dict) -> None:
+def write_result(output: Path, checkpoint_path: Path | None, images: torch.Tensor, generated_features: torch.Tensor, reference_images_tensor: torch.Tensor, reference_features: torch.Tensor, metadata: dict, metrics: dict) -> None:
     output.mkdir(parents=True, exist_ok=True); save_image(images, output / "grid.png", nrow=10)
     distances = torch.cdist(generated_features.float(), reference_features.float()); nearest = distances.argmin(1)
     selected = torch.arange(min(20, len(images)))
     paired = torch.stack([item for index in selected.tolist() for item in (images[index], reference_images_tensor[nearest[index]])])
     save_image(paired, output / "nearest_real.png", nrow=4)
-    metadata.update({"checkpoint": str(checkpoint_path), "checkpoint_sha256": sha256(checkpoint_path), "grid_sha256": sha256(output / "grid.png")})
+    metadata.update({"checkpoint": str(checkpoint_path) if checkpoint_path else None, "checkpoint_sha256": sha256(checkpoint_path) if checkpoint_path else None, "grid_sha256": sha256(output / "grid.png")})
     (output / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True), encoding="utf-8")
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -83,9 +84,23 @@ def generated_images(checkpoint: dict, cfg: dict, *, weights: str, samples: int,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AFHQ Cats one-class SiT evaluator; uses the official held-out test split only for metrics.")
-    parser.add_argument("--checkpoint", required=True); parser.add_argument("--output", required=True); parser.add_argument("--weights", choices=("raw", "ema"), default="ema")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--checkpoint")
+    source.add_argument("--config", help="Required for --vae-ceiling before any training checkpoint exists.")
+    parser.add_argument("--output", required=True); parser.add_argument("--weights", choices=("raw", "ema"), default="ema")
     parser.add_argument("--samples", type=int, default=1000); parser.add_argument("--seed-start", type=int, default=1000); parser.add_argument("--steps", type=int, default=50); parser.add_argument("--guidance-scale", type=float, default=1.5); parser.add_argument("--sample-batch-size", type=int, default=20); parser.add_argument("--duplicate-threshold", type=float, default=0.1); parser.add_argument("--vae-ceiling", action="store_true")
-    args = parser.parse_args(); checkpoint, cfg = load_config_from_checkpoint(args.checkpoint); device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args = parser.parse_args()
+    checkpoint_path = Path(args.checkpoint) if args.checkpoint else None
+    if checkpoint_path:
+        checkpoint, cfg = load_config_from_checkpoint(checkpoint_path)
+    else:
+        if not args.vae_ceiling:
+            parser.error("--config is valid only with --vae-ceiling; sampling requires --checkpoint")
+        cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+        if cfg["data"].get("dataset") != "afhq-cat-official" or cfg["data"].get("num_classes") != 1:
+            raise ValueError("Config is not an AFHQ Cats one-class SiT run")
+        checkpoint = None
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, preprocess = inception(device); test_images, test_paths = reference_images(cfg, "test"); reference_features = _batched_features(model, preprocess, test_images, device, 64)
     started = time.perf_counter()
     if args.vae_ceiling:
@@ -101,8 +116,8 @@ def main() -> None:
     if not torch.isfinite(images).all() or tuple(images.shape[1:]) != (3, 128, 128): raise RuntimeError("AFHQ evaluation produced invalid images")
     features = _batched_features(model, preprocess, images, device, 64)
     metrics = {"kid": kid(reference_features, features), "fid": fid(reference_features, features, device), "fid_sample_count": {"real": len(reference_features), "generated": len(features)}, "generative_precision": precision_recall(reference_features, features)[0], "generative_recall": precision_recall(reference_features, features)[1], "pixel": pixel_diagnostics(images), "nearest_test_feature_distance_mean": float(torch.cdist(features.float(), reference_features.float()).min(dim=1).values.mean()), **duplicate_diagnostics(features, args.duplicate_threshold)}
-    metadata = {"mode": mode, "weights": args.weights, "sampler": "heun", "steps": args.steps, "guidance_scale": args.guidance_scale, "seed_start": args.seed_start, "samples": len(images), "test_split_paths": test_paths, "sampling_seconds": time.perf_counter() - started, "device": str(device), "torch": torch.__version__, "vae_model_id": cfg["vae"]["model_id"], "latent_scaling_factor": checkpoint.get("config", {}).get("vae", {}).get("scaling_factor", "from_vae_config")}
-    write_result(Path(args.output), Path(args.checkpoint), images, features, test_images, reference_features, metadata, metrics); print(json.dumps(metrics, indent=2, sort_keys=True))
+    metadata = {"mode": mode, "weights": args.weights, "sampler": "heun", "steps": args.steps, "guidance_scale": args.guidance_scale, "seed_start": args.seed_start, "samples": len(images), "test_split_paths": test_paths, "sampling_seconds": time.perf_counter() - started, "device": str(device), "torch": torch.__version__, "vae_model_id": cfg["vae"]["model_id"], "latent_scaling_factor": cfg["vae"].get("scaling_factor", "from_vae_config")}
+    write_result(Path(args.output), checkpoint_path, images, features, test_images, reference_features, metadata, metrics); print(json.dumps(metrics, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
